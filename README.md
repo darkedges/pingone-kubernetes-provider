@@ -1,0 +1,223 @@
+# pingone-kubernetes-provider
+
+A Kubernetes operator that manages Ping Identity product deployments via a single `PingEnvironment` custom resource. The operator reconciles each CR into a Helm release of the [`ping-devops`](https://helm.pingidentity.com) chart (version `0.12.2`), handling PingFederate and optionally PingDirectory and PingDataConsole.
+
+---
+
+## Overview
+
+- Apply a `PingEnvironment` manifest — the operator does the rest.
+- PingFederate is always deployed as separate admin and engine workloads.
+- PingDirectory and PingDataConsole are optional; omit their sections to skip them.
+- Resource sizing (CPU/memory) is driven by a single `tier` field: `development`, `staging`, or `production`.
+- A shared `spec.ingress` block provides ingress class and annotations to all components; per-component blocks only need `enabled` and a TLS secret reference.
+- Hostnames are derived from `spec.domain` automatically (e.g. `pf.localhost`, `pf-admin.localhost`) or overridden per component.
+
+---
+
+## Prerequisites
+
+| Requirement | Version |
+|---|---|
+| Go | 1.22+ |
+| Kubernetes | 1.26+ |
+| kubectl | matching cluster version |
+| Helm | 3.x (used as a Go library, not CLI) |
+| Docker | any recent version |
+| make | GNU make |
+
+A `devops-secret` must exist in the target namespace before applying a `PingEnvironment`:
+
+```bash
+kubectl create secret generic devops-secret \
+  --from-literal=PING_IDENTITY_ACCEPT_EULA=YES \
+  --from-literal=PING_IDENTITY_DEVOPS_USER=<your-devops-user> \
+  --from-literal=PING_IDENTITY_DEVOPS_KEY=<your-devops-key> \
+  -n <target-namespace>
+```
+
+---
+
+## Quick start
+
+### 1. Install CRDs
+
+```bash
+make install
+```
+
+### 2. Deploy the operator
+
+**Docker Desktop:**
+```bash
+make docker-desktop
+```
+
+**Any cluster (push image first):**
+```bash
+make docker-build docker-push IMG=<registry>/pingone-operator:latest
+make deploy IMG=<registry>/pingone-operator:latest
+```
+
+### 3. Apply an environment
+
+Use the getting-started example (edit credentials first):
+
+```bash
+make example-getting-started
+```
+
+Or apply the minimal sample CR:
+
+```bash
+kubectl apply -f config/samples/pingone_v1alpha1_pingenvironment.yaml
+```
+
+Or use your own manifest — see [Configuration](#configuration) below.
+
+### 4. Check status
+
+```bash
+kubectl get pingenvironments -A
+kubectl get pods -n <target-namespace>
+```
+
+---
+
+## PingEnvironment manifest
+
+```yaml
+apiVersion: pingone.io/v1alpha1
+kind: PingEnvironment
+metadata:
+  name: myorg-dev
+  namespace: pingone
+spec:
+  tenantId: myorg-dev           # prefix for the Helm release name (<tenantId>-ping)
+  tier: development             # development | staging | production
+  domain: dev.myorg.example.com # base domain; component hostnames derived automatically
+
+  # Shared ingress settings — inherited by all components
+  ingress:
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+  pingFederate:
+    version: "13.0.2-edge"
+    replicas: 1
+    engineIngress:
+      enabled: true
+      tlsSecretRef: pf-tls      # hostname: pf.dev.myorg.example.com
+    adminIngress:
+      enabled: true
+      tlsSecretRef: pf-admin-tls  # hostname: pf-admin.dev.myorg.example.com
+    config:
+      serverProfileURL: https://github.com/myorg/ping-profiles.git
+      serverProfileBranch: main
+      serverProfilePath: pingfederate
+
+  pingDirectory:                # optional — omit to skip PingDirectory
+    version: "11.0.0.2-edge"
+    replicas: 1
+    console:                    # optional — omit to skip PingDataConsole
+      ingress:
+        enabled: true
+        tlsSecretRef: pd-console-tls  # hostname: pd-console.dev.myorg.example.com
+    config:
+      serverProfileURL: https://github.com/myorg/ping-profiles.git
+      serverProfileBranch: main
+      serverProfilePath: pingdirectory
+      userBaseDN: "dc=myorg,dc=com"
+```
+
+See [CONFIGURATION.md](CONFIGURATION.md) for the full field reference.
+
+---
+
+## Configuration
+
+See **[CONFIGURATION.md](CONFIGURATION.md)** for complete documentation including:
+
+- All `spec.pingFederate.config` fields and their container env var mappings
+- All `spec.pingDirectory.config` fields and their container env var mappings
+- Resource sizing per tier
+- Ingress configuration (global and per-component)
+- `valuesOverride` escape hatch for raw Helm values
+- Status fields
+
+---
+
+## Hostname derivation
+
+When `spec.domain` is set, hostnames are derived automatically:
+
+| Component | Default hostname |
+|---|---|
+| PingFederate engine | `pf.<domain>` |
+| PingFederate admin | `pf-admin.<domain>` |
+| PingDataConsole | `pd-console.<domain>` |
+
+Override any hostname by setting `hostname` inside the component's ingress block.
+
+---
+
+## Tier resource sizing
+
+| Tier | PingFederate CPU | PingFederate Memory | PingDirectory CPU | PingDirectory Memory |
+|---|---|---|---|---|
+| `development` | 500m | 512Mi | 500m | 1Gi |
+| `staging` | 1 | 1Gi | 1 | 2Gi |
+| `production` | 2 | 2Gi | 2 | 4Gi |
+
+---
+
+## Examples
+
+| Example | Description |
+|---|---|
+| [examples/getting-started](examples/getting-started/) | PingFederate on Docker Desktop with nginx ingress, cert-manager self-signed TLS, and the Ping Identity getting-started server profile |
+
+## Development
+
+```bash
+make tools        # download controller-gen, kustomize, golangci-lint, envtest
+make all          # generate + fmt + vet + build
+make test         # run tests with envtest
+make lint         # run golangci-lint
+make run          # run operator locally against active kubeconfig
+```
+
+Full target list:
+
+```bash
+make help
+```
+
+---
+
+## Project structure
+
+```
+api/v1alpha1/               CRD types and DeepCopy
+config/
+  crd/                      Generated CRD manifests
+  rbac/                     RBAC roles and bindings
+  manager/                  Operator Deployment manifest
+  default/                  Kustomize overlay (namespace, namePrefix)
+  samples/                  Example PingEnvironment CR
+controllers/                Reconciler (pingenvironment_controller.go)
+internal/helm/
+  client.go                 Helm action.Configuration setup
+  defaults.go               Ping Identity container env var defaults
+  release.go                BuildPingValues, InstallOrUpgrade, DownloadChart
+CONFIGURATION.md            Full field reference
+```
+
+---
+
+## License
+
+Apache 2.0

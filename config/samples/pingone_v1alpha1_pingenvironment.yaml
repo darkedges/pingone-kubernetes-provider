@@ -1,0 +1,58 @@
+apiVersion: pingone.io/v1alpha1
+kind: PingEnvironment
+metadata:
+  name: env-dev-abc123
+  namespace: ping-environments
+spec:
+  tenantId: abc123
+  tier: development
+  targetNamespace: ping-abc123
+
+  pingFederate:
+    version: "12.1"
+    replicas: 1
+    ingress:
+      enabled: true
+      className: nginx
+      hostname: pf.abc123.dev.example.com
+      tlsSecretRef: pf-tls-abc123
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    config:
+      serverProfileURL: https://github.com/your-org/ping-profiles.git
+      serverProfilePath: pingfederate
+      enginePort: 9031
+      adminPort: 9999
+      enginePublicHostname: pf.abc123.dev.example.com
+      adminPublicHostname: pf-admin.abc123.dev.example.com
+      adminPublicBaseURL: https://pf-admin.abc123.dev.example.com:9999
+      consoleEnvironment: abc123-dev
+      consoleTitle: "Dev - abc123"
+      operationalMode: STANDALONE
+      consoleAuthentication: native
+      adminAPIAuthentication: native
+      ldapType: PingDirectory
+      pingOneRegion: com
+      provisionerMode: OFF
+      javaRamPercentage: "75.0"
+      adminSecretRef: pf-admin-secret-abc123
+
+  pingDirectory:
+    version: "9.3"
+    replicas: 2
+    storageClass: standard
+    storageSize: 8Gi
+    config:
+      serverProfileURL: https://github.com/your-org/ping-profiles.git
+      serverProfilePath: pingdirectory
+      userBaseDN: "dc=abc123,dc=com"
+      replicationPort: 8989
+      ldapPort: 1389
+      ldapsPort: 1636
+      httpsPort: 1443
+      adminUserName: admin
+      retryTimeoutSeconds: 180
+      parallelPodManagement: false
+      failOnDisabledBaseDN: false
+      adminSecretRef: pd-admin-secret-abc123

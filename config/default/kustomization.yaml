@@ -1,0 +1,12 @@
+namePrefix: pingone-operator-
+
+namespace: pingone-system
+
+resources:
+- namespace.yaml
+- ../crd
+- ../rbac
+- ../manager
+
+patches:
+- path: manager_auth_proxy_patch.yaml

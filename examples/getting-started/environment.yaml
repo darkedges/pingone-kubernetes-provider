@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pingone
+---
+# Create your Ping Identity DevOps credentials at:
+# https://docs.pingidentity.com/devops/devopsPrograms/devopsRegistration.html
+#
+# Then base64-encode them and fill in the values below:
+#   echo -n "YES"                  | base64   -> PING_IDENTITY_ACCEPT_EULA
+#   echo -n "user@example.com"     | base64   -> PING_IDENTITY_DEVOPS_USER
+#   echo -n "your-devops-key"      | base64   -> PING_IDENTITY_DEVOPS_KEY
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devops-secret
+  namespace: pingone
+type: Opaque
+data:
+  PING_IDENTITY_ACCEPT_EULA: eWVz
+  PING_IDENTITY_DEVOPS_USER: <base64-encoded-devops-user>
+  PING_IDENTITY_DEVOPS_KEY: <base64-encoded-devops-key>
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingEnvironment
+metadata:
+  name: env-getting-started
+  namespace: pingone
+spec:
+  tenantId: getting-started
+  tier: development
+  domain: localhost
+
+  # Shared ingress settings — inherited by all component ingresses below.
+  # Remove this block (and the engineIngress/adminIngress/console.ingress blocks)
+  # if you do not have an ingress controller installed.
+  ingress:
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: "selfsigned-cluster-issuer"
+
+  pingFederate:
+    version: "13.0.2-edge"
+    replicas: 1
+    engineIngress:
+      enabled: true
+      tlsSecretRef: pf-tls           # hostname: pf.localhost
+    adminIngress:
+      enabled: true
+      tlsSecretRef: pf-admin-tls     # hostname: pf-admin.localhost
+    config:
+      serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
+      serverProfilePath: getting-started/pingfederate
+
+  # Uncomment to deploy PingDirectory alongside PingFederate.
+  # pingDirectory:
+  #   version: "11.0.0.2-edge"
+  #   replicas: 1
+  #   console:
+  #     ingress:
+  #       enabled: true
+  #       tlsSecretRef: pd-console-tls  # hostname: pd-console.localhost
+  #   config:
+  #     serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
+  #     serverProfilePath: getting-started/pingdirectory
+  #     userBaseDN: "dc=example,dc=com"

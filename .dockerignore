@@ -1,0 +1,5 @@
+bin/
+hack/
+config/
+*.md
+cover.out
