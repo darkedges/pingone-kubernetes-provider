@@ -890,8 +890,8 @@ func buildContainerValues(cpu, memory string, container pingonev1alpha1.Containe
 
 // emitServerProfileEnvs writes SERVER_PROFILE_* env vars from a layered profile spec.
 // The base profile maps to SERVER_PROFILE_URL/_BRANCH/_PATH/_PARENT.
-// Each entry in layers maps to SERVER_PROFILE_<UPPERCASED_KEY>_URL etc.
-func emitServerProfileEnvs(envs map[string]any, profile *pingonev1alpha1.ServerProfileSpec, layers map[string]pingonev1alpha1.ServerProfileSpec) {
+// Each layer maps to SERVER_PROFILE_<UPPER(layer.Name)>_URL etc.
+func emitServerProfileEnvs(envs map[string]any, profile *pingonev1alpha1.ServerProfileSpec, layers []pingonev1alpha1.ServerProfileLayerSpec) {
 	if profile == nil {
 		return
 	}
@@ -907,8 +907,8 @@ func emitServerProfileEnvs(envs map[string]any, profile *pingonev1alpha1.ServerP
 	if profile.Parent != "" {
 		envs["SERVER_PROFILE_PARENT"] = profile.Parent
 	}
-	for name, layer := range layers {
-		k := strings.ToUpper(name)
+	for _, layer := range layers {
+		k := strings.ToUpper(layer.Name)
 		if layer.URL != "" {
 			envs["SERVER_PROFILE_"+k+"_URL"] = layer.URL
 		}

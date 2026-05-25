@@ -54,12 +54,11 @@ type ContainerSpec struct {
 	WaitFor []WaitForSpec `json:"waitFor,omitempty"`
 }
 
-// ServerProfileSpec defines one layer of a Ping Identity server profile.
+// ServerProfileSpec defines the base server profile for a container.
 // See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
 //
-// The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
-// Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
-// Profiles are applied bottom-up: the layer named in parent is applied first.
+// Maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+// Use serverProfileLayers for additional named layers chained via parent.
 type ServerProfileSpec struct {
 	// URL is the Git HTTPS URL of the server profile repo.
 	URL string `json:"url,omitempty"`
@@ -67,8 +66,24 @@ type ServerProfileSpec struct {
 	Branch string `json:"branch,omitempty"`
 	// Path is the subdirectory within the git repo.
 	Path string `json:"path,omitempty"`
-	// Parent is the key of the parent layer in serverProfileLayers.
-	// Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+	// Parent is the name of a layer in serverProfileLayers that is applied beneath this profile.
+	// Sets SERVER_PROFILE_PARENT.
+	Parent string `json:"parent,omitempty"`
+}
+
+// ServerProfileLayerSpec defines a named server profile layer for layered profiles.
+// Each entry maps to SERVER_PROFILE_<UPPER(NAME)>_URL / _BRANCH / _PATH / _PARENT.
+type ServerProfileLayerSpec struct {
+	// Name is the layer identifier (e.g. paz, base, extensions).
+	// Env vars use the uppercased name: paz → SERVER_PROFILE_PAZ_URL etc.
+	Name string `json:"name"`
+	// URL is the Git HTTPS URL of this layer's repo.
+	URL string `json:"url,omitempty"`
+	// Branch is the Git branch to check out.
+	Branch string `json:"branch,omitempty"`
+	// Path is the subdirectory within the git repo.
+	Path string `json:"path,omitempty"`
+	// Parent is the name of a deeper layer in serverProfileLayers (sets SERVER_PROFILE_<NAME>_PARENT).
 	Parent string `json:"parent,omitempty"`
 }
 
@@ -79,7 +94,7 @@ type PingAccessConfig struct {
 	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
 	// ServerProfileLayers defines additional named profile layers (layered profiles).
 	// Keys are the layer names (e.g. "BASE"); env vars use the uppercased key.
-	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
 	// AdminPort is the HTTPS port for the PingAccess admin console (PA_ADMIN_PORT). Default: 9000.
 	AdminPort int32 `json:"adminPort,omitempty"`
 	// EnginePort is the HTTPS port for the PingAccess engine (PA_ENGINE_PORT). Default: 3000.
@@ -129,7 +144,7 @@ type PingAuthorizeConfig struct {
 	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
 	// ServerProfileLayers defines additional named profile layers (layered profiles).
 	// Keys are the layer names (e.g. "PAZ", "BASE"); env vars use the uppercased key.
-	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
 	// LDAPPort is the container LDAP port (LDAP_PORT). Default: 1389.
 	LDAPPort int32 `json:"ldapPort,omitempty"`
 	// LDAPSPort is the container LDAPS port (LDAPS_PORT). Default: 1636.
@@ -158,7 +173,7 @@ type PingAuthorizePAPConfig struct {
 	// ServerProfile is the primary server profile for PingAuthorizePAP.
 	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
 	// ServerProfileLayers defines additional named profile layers (layered profiles).
-	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
 	// ExternalBaseURL is the external hostname and port for PAP API access (PING_EXTERNAL_BASE_URL).
 	// Derived as https://paz-pap.<spec.domain> when spec.domain is set and this is empty.
 	ExternalBaseURL string `json:"externalBaseURL,omitempty"`
@@ -225,7 +240,7 @@ type PingFederateConfig struct {
 	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
 	// ServerProfileLayers defines additional named profile layers (layered profiles).
 	// Keys are the layer names; env vars use the uppercased key.
-	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
 	// EnginePort is the HTTPS port for the PingFederate runtime engine (PF_ENGINE_PORT). Default: 9031.
 	EnginePort int32 `json:"enginePort,omitempty"`
 	// AdminPort is the HTTPS port for the PingFederate admin console/API (PF_ADMIN_PORT). Default: 9999.
@@ -277,7 +292,7 @@ type PingDirectoryConfig struct {
 	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
 	// ServerProfileLayers defines additional named profile layers (layered profiles).
 	// Keys are the layer names; env vars use the uppercased key.
-	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
 	// UserBaseDN is the base DN for user data (USER_BASE_DN). Default: dc=example,dc=com.
 	UserBaseDN string `json:"userBaseDN,omitempty"`
 	// ReplicationBaseDNs is additional base DNs for replication (REPLICATION_BASE_DNS).

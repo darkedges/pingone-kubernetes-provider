@@ -166,8 +166,8 @@ spec:
                             type: string
                           parent:
                             description: |-
-                              Parent is the key of the parent layer in serverProfileLayers.
-                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              Parent is the name of a layer in serverProfileLayers that is applied beneath this profile.
+                              Sets SERVER_PROFILE_PARENT.
                             type: string
                           path:
                             description: Path is the subdirectory within the git repo.
@@ -178,37 +178,38 @@ spec:
                             type: string
                         type: object
                       serverProfileLayers:
-                        additionalProperties:
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names (e.g. "BASE"); env vars use the uppercased key.
+                        items:
                           description: |-
-                            ServerProfileSpec defines one layer of a Ping Identity server profile.
-                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
-
-                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
-                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
-                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                            ServerProfileLayerSpec defines a named server profile layer for layered profiles.
+                            Each entry maps to SERVER_PROFILE_<UPPER(NAME)>_URL / _BRANCH / _PATH / _PARENT.
                           properties:
                             branch:
                               description: Branch is the Git branch to check out.
-                                Omit to use the repo default branch.
+                              type: string
+                            name:
+                              description: |-
+                                Name is the layer identifier (e.g. paz, base, extensions).
+                                Env vars use the uppercased name: paz → SERVER_PROFILE_PAZ_URL etc.
                               type: string
                             parent:
-                              description: |-
-                                Parent is the key of the parent layer in serverProfileLayers.
-                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              description: Parent is the name of a deeper layer in
+                                serverProfileLayers (sets SERVER_PROFILE_<NAME>_PARENT).
                               type: string
                             path:
                               description: Path is the subdirectory within the git
                                 repo.
                               type: string
                             url:
-                              description: URL is the Git HTTPS URL of the server
-                                profile repo.
+                              description: URL is the Git HTTPS URL of this layer's
+                                repo.
                               type: string
+                          required:
+                          - name
                           type: object
-                        description: |-
-                          ServerProfileLayers defines additional named profile layers (layered profiles).
-                          Keys are the layer names (e.g. "BASE"); env vars use the uppercased key.
-                        type: object
+                        type: array
                     type: object
                   container:
                     description: Container holds container-level settings such as
@@ -349,8 +350,8 @@ spec:
                             type: string
                           parent:
                             description: |-
-                              Parent is the key of the parent layer in serverProfileLayers.
-                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              Parent is the name of a layer in serverProfileLayers that is applied beneath this profile.
+                              Sets SERVER_PROFILE_PARENT.
                             type: string
                           path:
                             description: Path is the subdirectory within the git repo.
@@ -361,37 +362,38 @@ spec:
                             type: string
                         type: object
                       serverProfileLayers:
-                        additionalProperties:
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names (e.g. "PAZ", "BASE"); env vars use the uppercased key.
+                        items:
                           description: |-
-                            ServerProfileSpec defines one layer of a Ping Identity server profile.
-                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
-
-                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
-                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
-                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                            ServerProfileLayerSpec defines a named server profile layer for layered profiles.
+                            Each entry maps to SERVER_PROFILE_<UPPER(NAME)>_URL / _BRANCH / _PATH / _PARENT.
                           properties:
                             branch:
                               description: Branch is the Git branch to check out.
-                                Omit to use the repo default branch.
+                              type: string
+                            name:
+                              description: |-
+                                Name is the layer identifier (e.g. paz, base, extensions).
+                                Env vars use the uppercased name: paz → SERVER_PROFILE_PAZ_URL etc.
                               type: string
                             parent:
-                              description: |-
-                                Parent is the key of the parent layer in serverProfileLayers.
-                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              description: Parent is the name of a deeper layer in
+                                serverProfileLayers (sets SERVER_PROFILE_<NAME>_PARENT).
                               type: string
                             path:
                               description: Path is the subdirectory within the git
                                 repo.
                               type: string
                             url:
-                              description: URL is the Git HTTPS URL of the server
-                                profile repo.
+                              description: URL is the Git HTTPS URL of this layer's
+                                repo.
                               type: string
+                          required:
+                          - name
                           type: object
-                        description: |-
-                          ServerProfileLayers defines additional named profile layers (layered profiles).
-                          Keys are the layer names (e.g. "PAZ", "BASE"); env vars use the uppercased key.
-                        type: object
+                        type: array
                       userBaseDN:
                         description: 'UserBaseDN is the base DN for user data (USER_BASE_DN).
                           Default: dc=example,dc=com.'
@@ -531,8 +533,8 @@ spec:
                             type: string
                           parent:
                             description: |-
-                              Parent is the key of the parent layer in serverProfileLayers.
-                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              Parent is the name of a layer in serverProfileLayers that is applied beneath this profile.
+                              Sets SERVER_PROFILE_PARENT.
                             type: string
                           path:
                             description: Path is the subdirectory within the git repo.
@@ -543,36 +545,37 @@ spec:
                             type: string
                         type: object
                       serverProfileLayers:
-                        additionalProperties:
+                        description: ServerProfileLayers defines additional named
+                          profile layers (layered profiles).
+                        items:
                           description: |-
-                            ServerProfileSpec defines one layer of a Ping Identity server profile.
-                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
-
-                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
-                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
-                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                            ServerProfileLayerSpec defines a named server profile layer for layered profiles.
+                            Each entry maps to SERVER_PROFILE_<UPPER(NAME)>_URL / _BRANCH / _PATH / _PARENT.
                           properties:
                             branch:
                               description: Branch is the Git branch to check out.
-                                Omit to use the repo default branch.
+                              type: string
+                            name:
+                              description: |-
+                                Name is the layer identifier (e.g. paz, base, extensions).
+                                Env vars use the uppercased name: paz → SERVER_PROFILE_PAZ_URL etc.
                               type: string
                             parent:
-                              description: |-
-                                Parent is the key of the parent layer in serverProfileLayers.
-                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              description: Parent is the name of a deeper layer in
+                                serverProfileLayers (sets SERVER_PROFILE_<NAME>_PARENT).
                               type: string
                             path:
                               description: Path is the subdirectory within the git
                                 repo.
                               type: string
                             url:
-                              description: URL is the Git HTTPS URL of the server
-                                profile repo.
+                              description: URL is the Git HTTPS URL of this layer's
+                                repo.
                               type: string
+                          required:
+                          - name
                           type: object
-                        description: ServerProfileLayers defines additional named
-                          profile layers (layered profiles).
-                        type: object
+                        type: array
                       sharedSecretRef:
                         description: SharedSecretRef is the name of a Secret containing
                           DECISION_POINT_SHARED_SECRET for PAZ integration.
@@ -786,8 +789,8 @@ spec:
                             type: string
                           parent:
                             description: |-
-                              Parent is the key of the parent layer in serverProfileLayers.
-                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              Parent is the name of a layer in serverProfileLayers that is applied beneath this profile.
+                              Sets SERVER_PROFILE_PARENT.
                             type: string
                           path:
                             description: Path is the subdirectory within the git repo.
@@ -798,37 +801,38 @@ spec:
                             type: string
                         type: object
                       serverProfileLayers:
-                        additionalProperties:
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names; env vars use the uppercased key.
+                        items:
                           description: |-
-                            ServerProfileSpec defines one layer of a Ping Identity server profile.
-                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
-
-                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
-                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
-                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                            ServerProfileLayerSpec defines a named server profile layer for layered profiles.
+                            Each entry maps to SERVER_PROFILE_<UPPER(NAME)>_URL / _BRANCH / _PATH / _PARENT.
                           properties:
                             branch:
                               description: Branch is the Git branch to check out.
-                                Omit to use the repo default branch.
+                              type: string
+                            name:
+                              description: |-
+                                Name is the layer identifier (e.g. paz, base, extensions).
+                                Env vars use the uppercased name: paz → SERVER_PROFILE_PAZ_URL etc.
                               type: string
                             parent:
-                              description: |-
-                                Parent is the key of the parent layer in serverProfileLayers.
-                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              description: Parent is the name of a deeper layer in
+                                serverProfileLayers (sets SERVER_PROFILE_<NAME>_PARENT).
                               type: string
                             path:
                               description: Path is the subdirectory within the git
                                 repo.
                               type: string
                             url:
-                              description: URL is the Git HTTPS URL of the server
-                                profile repo.
+                              description: URL is the Git HTTPS URL of this layer's
+                                repo.
                               type: string
+                          required:
+                          - name
                           type: object
-                        description: |-
-                          ServerProfileLayers defines additional named profile layers (layered profiles).
-                          Keys are the layer names; env vars use the uppercased key.
-                        type: object
+                        type: array
                       userBaseDN:
                         description: 'UserBaseDN is the base DN for user data (USER_BASE_DN).
                           Default: dc=example,dc=com.'
@@ -1028,8 +1032,8 @@ spec:
                             type: string
                           parent:
                             description: |-
-                              Parent is the key of the parent layer in serverProfileLayers.
-                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              Parent is the name of a layer in serverProfileLayers that is applied beneath this profile.
+                              Sets SERVER_PROFILE_PARENT.
                             type: string
                           path:
                             description: Path is the subdirectory within the git repo.
@@ -1040,37 +1044,38 @@ spec:
                             type: string
                         type: object
                       serverProfileLayers:
-                        additionalProperties:
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names; env vars use the uppercased key.
+                        items:
                           description: |-
-                            ServerProfileSpec defines one layer of a Ping Identity server profile.
-                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
-
-                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
-                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
-                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                            ServerProfileLayerSpec defines a named server profile layer for layered profiles.
+                            Each entry maps to SERVER_PROFILE_<UPPER(NAME)>_URL / _BRANCH / _PATH / _PARENT.
                           properties:
                             branch:
                               description: Branch is the Git branch to check out.
-                                Omit to use the repo default branch.
+                              type: string
+                            name:
+                              description: |-
+                                Name is the layer identifier (e.g. paz, base, extensions).
+                                Env vars use the uppercased name: paz → SERVER_PROFILE_PAZ_URL etc.
                               type: string
                             parent:
-                              description: |-
-                                Parent is the key of the parent layer in serverProfileLayers.
-                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              description: Parent is the name of a deeper layer in
+                                serverProfileLayers (sets SERVER_PROFILE_<NAME>_PARENT).
                               type: string
                             path:
                               description: Path is the subdirectory within the git
                                 repo.
                               type: string
                             url:
-                              description: URL is the Git HTTPS URL of the server
-                                profile repo.
+                              description: URL is the Git HTTPS URL of this layer's
+                                repo.
                               type: string
+                          required:
+                          - name
                           type: object
-                        description: |-
-                          ServerProfileLayers defines additional named profile layers (layered profiles).
-                          Keys are the layer names; env vars use the uppercased key.
-                        type: object
+                        type: array
                     type: object
                   container:
                     description: Container holds container-level settings such as
