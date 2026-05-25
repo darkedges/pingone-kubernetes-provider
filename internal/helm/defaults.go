@@ -44,6 +44,67 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 		pf.HSMMode = "OFF"
 	}
 
+	if spec.PingAccess != nil {
+		if spec.PingAccess.Replicas == 0 {
+			spec.PingAccess.Replicas = 1
+		}
+		pa := &spec.PingAccess.Config
+		if pa.AdminPort == 0 {
+			pa.AdminPort = 9000
+		}
+		if pa.EnginePort == 0 {
+			pa.EnginePort = 3000
+		}
+		if pa.OperationalMode == "" {
+			pa.OperationalMode = "STANDALONE"
+		}
+		if pa.JavaRAMPercentage == "" {
+			pa.JavaRAMPercentage = "60.0"
+		}
+	}
+
+	if spec.PingAuthorize != nil {
+		if spec.PingAuthorize.Replicas == 0 {
+			spec.PingAuthorize.Replicas = 1
+		}
+		paz := &spec.PingAuthorize.Config
+		if paz.LDAPPort == 0 {
+			paz.LDAPPort = 1389
+		}
+		if paz.LDAPSPort == 0 {
+			paz.LDAPSPort = 1636
+		}
+		if paz.HTTPSPort == 0 {
+			paz.HTTPSPort = 1443
+		}
+		if paz.UserBaseDN == "" {
+			paz.UserBaseDN = "dc=example,dc=com"
+		}
+		if paz.AdminUserName == "" {
+			paz.AdminUserName = "admin"
+		}
+		if paz.RetryTimeoutSeconds == 0 {
+			paz.RetryTimeoutSeconds = 180
+		}
+		if paz.MaxHeapSize == "" {
+			paz.MaxHeapSize = "1g"
+		}
+		if spec.PingAuthorize.StorageSize == "" {
+			spec.PingAuthorize.StorageSize = "8Gi"
+		}
+	}
+
+	if spec.PingAuthorizePAP != nil {
+		pap := &spec.PingAuthorizePAP.Config
+		if pap.MaxHeapSize == "" {
+			pap.MaxHeapSize = "384m"
+		}
+		if pap.EnableAPIHTTPCache == nil {
+			t := true
+			pap.EnableAPIHTTPCache = &t
+		}
+	}
+
 	if spec.PingDirectory == nil {
 		return
 	}

@@ -544,12 +544,325 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		pdcValues = map[string]any{"enabled": false}
 	}
 
+	// Assemble pingaccess-admin and pingaccess-engine sections
+	var paAdminValues, paEngineValues map[string]any
+	if spec.PingAccess == nil {
+		paAdminValues = map[string]any{"enabled": false}
+		paEngineValues = map[string]any{"enabled": false}
+	} else {
+		paCPU, paMem := TierResources(spec.Tier, "pf")
+		paCfg := spec.PingAccess.Config
+		paAdminIng := resolveIngressSpec(spec.Ingress, spec.PingAccess.AdminIngress)
+		paEngineIng := resolveIngressSpec(spec.Ingress, spec.PingAccess.EngineIngress)
+		paAdminIng.TLSSecretRef = resolveTLSSecretRef(paAdminIng.TLSSecretRef, spec.TenantID, "pa-admin")
+		paEngineIng.TLSSecretRef = resolveTLSSecretRef(paEngineIng.TLSSecretRef, spec.TenantID, "pa")
+		paAdminHostname := resolveHostname(paAdminIng.Hostname, "pa-admin", spec.Domain)
+		paEngineHostname := resolveHostname(paEngineIng.Hostname, "pa", spec.Domain)
+
+		paEnvs := map[string]any{
+			"PA_ADMIN_PORT":       fmt.Sprintf("%d", paCfg.AdminPort),
+			"PA_ENGINE_PORT":      fmt.Sprintf("%d", paCfg.EnginePort),
+			"OPERATIONAL_MODE":    paCfg.OperationalMode,
+			"FIPS_MODE_ON":        fmt.Sprintf("%t", paCfg.FIPSModeOn),
+			"JAVA_RAM_PERCENTAGE": paCfg.JavaRAMPercentage,
+			"TAIL_LOG_FILES":      "${SERVER_ROOT_DIR}/log/pingaccess.log",
+		}
+		if paCfg.ServerProfileURL != "" {
+			paEnvs["SERVER_PROFILE_URL"] = paCfg.ServerProfileURL
+		}
+		if paCfg.ServerProfileBranch != "" {
+			paEnvs["SERVER_PROFILE_BRANCH"] = paCfg.ServerProfileBranch
+		}
+		if paCfg.ServerProfilePath != "" {
+			paEnvs["SERVER_PROFILE_PATH"] = paCfg.ServerProfilePath
+		}
+		if paCfg.AdminPublicHostname != "" {
+			paEnvs["PA_ADMIN_PUBLIC_HOSTNAME"] = paCfg.AdminPublicHostname
+		}
+		if paCfg.EnginePublicHostname != "" {
+			paEnvs["PA_ENGINE_PUBLIC_HOSTNAME"] = paCfg.EnginePublicHostname
+		}
+
+		paEnvFrom := map[string]any{}
+		if paCfg.AdminSecretRef != "" {
+			paEnvFrom["secretRef"] = []map[string]any{{"name": paCfg.AdminSecretRef}}
+		}
+		if paCfg.EnvConfigMapRef != "" {
+			paEnvFrom["configMapRef"] = []map[string]any{{"name": paCfg.EnvConfigMapRef}}
+		}
+
+		var paAdminIngressValues map[string]any
+		if ingressEnabled(paAdminIng) {
+			paAdminIngressValues = buildIngressValues(paAdminIng, paAdminHostname)
+		} else {
+			paAdminIngressValues = map[string]any{"enabled": false}
+		}
+
+		var paEngineIngressValues map[string]any
+		if ingressEnabled(paEngineIng) {
+			paEngineIngressValues = buildIngressValues(paEngineIng, paEngineHostname)
+		} else {
+			paEngineIngressValues = map[string]any{"enabled": false}
+		}
+
+		paImageValues := buildImageValues(spec.PingAccess.Image, spec.PingAccess.Version)
+
+		paAdminValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": 1,
+				},
+			},
+			"image": paImageValues,
+			"container": map[string]any{
+				"resources": map[string]any{
+					"requests": map[string]any{"cpu": paCPU, "memory": paMem},
+				},
+			},
+			"envs": paEnvs,
+			"services": map[string]any{
+				"https": map[string]any{
+					"containerPort": paCfg.AdminPort,
+					"servicePort":   paCfg.AdminPort,
+					"dataService":   true,
+					"ingressPort":   443,
+				},
+			},
+			"ingress": paAdminIngressValues,
+		}
+		if len(paEnvFrom) > 0 {
+			paAdminValues["envFrom"] = paEnvFrom
+		}
+
+		paEngineValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": spec.PingAccess.Replicas,
+				},
+			},
+			"image": paImageValues,
+			"container": map[string]any{
+				"resources": map[string]any{
+					"requests": map[string]any{"cpu": paCPU, "memory": paMem},
+				},
+			},
+			"envs": paEnvs,
+			"services": map[string]any{
+				"https": map[string]any{
+					"containerPort": paCfg.EnginePort,
+					"servicePort":   paCfg.EnginePort,
+					"dataService":   true,
+					"ingressPort":   443,
+				},
+			},
+			"ingress": paEngineIngressValues,
+		}
+		if len(paEnvFrom) > 0 {
+			paEngineValues["envFrom"] = paEnvFrom
+		}
+	}
+
+	// Assemble pingauthorize section
+	var pazValues map[string]any
+	if spec.PingAuthorize == nil {
+		pazValues = map[string]any{"enabled": false}
+	} else {
+		pazCPU, pazMem := TierResources(spec.Tier, "pd")
+		pazCfg := spec.PingAuthorize.Config
+		pazSpec := spec.PingAuthorize
+		pazIng := resolveIngressSpec(spec.Ingress, pazSpec.Ingress)
+		pazIng.TLSSecretRef = resolveTLSSecretRef(pazIng.TLSSecretRef, spec.TenantID, "paz")
+		pazHostname := resolveHostname(pazIng.Hostname, "paz", spec.Domain)
+
+		pazEnvs := map[string]any{
+			"USER_BASE_DN":          pazCfg.UserBaseDN,
+			"LDAP_PORT":             fmt.Sprintf("%d", pazCfg.LDAPPort),
+			"LDAPS_PORT":            fmt.Sprintf("%d", pazCfg.LDAPSPort),
+			"HTTPS_PORT":            fmt.Sprintf("%d", pazCfg.HTTPSPort),
+			"ADMIN_USER_NAME":       pazCfg.AdminUserName,
+			"RETRY_TIMEOUT_SECONDS": fmt.Sprintf("%d", pazCfg.RetryTimeoutSeconds),
+			"MAX_HEAP_SIZE":         pazCfg.MaxHeapSize,
+			"TAIL_LOG_FILES":        "${SERVER_ROOT_DIR}/logs/access ${SERVER_ROOT_DIR}/logs/errors",
+		}
+		if pazCfg.ServerProfileURL != "" {
+			pazEnvs["SERVER_PROFILE_URL"] = pazCfg.ServerProfileURL
+		}
+		if pazCfg.ServerProfileBranch != "" {
+			pazEnvs["SERVER_PROFILE_BRANCH"] = pazCfg.ServerProfileBranch
+		}
+		if pazCfg.ServerProfilePath != "" {
+			pazEnvs["SERVER_PROFILE_PATH"] = pazCfg.ServerProfilePath
+		}
+
+		pazEnvFrom := map[string]any{}
+		if pazCfg.AdminSecretRef != "" || pazCfg.EncryptionSecretRef != "" {
+			secretRefs := []map[string]any{}
+			if pazCfg.AdminSecretRef != "" {
+				secretRefs = append(secretRefs, map[string]any{"name": pazCfg.AdminSecretRef})
+			}
+			if pazCfg.EncryptionSecretRef != "" {
+				secretRefs = append(secretRefs, map[string]any{"name": pazCfg.EncryptionSecretRef})
+			}
+			pazEnvFrom["secretRef"] = secretRefs
+		}
+		if pazCfg.EnvConfigMapRef != "" {
+			pazEnvFrom["configMapRef"] = []map[string]any{{"name": pazCfg.EnvConfigMapRef}}
+		}
+
+		var pazIngressValues map[string]any
+		if ingressEnabled(pazIng) {
+			pazIngressValues = buildIngressValues(pazIng, pazHostname)
+		} else {
+			pazIngressValues = map[string]any{"enabled": false}
+		}
+
+		pvcClaim := map[string]any{
+			"accessModes": []string{"ReadWriteOnce"},
+			"resources": map[string]any{
+				"requests": map[string]any{"storage": pazSpec.StorageSize},
+			},
+		}
+		if pazSpec.StorageClass != "" {
+			pvcClaim["storageClassName"] = pazSpec.StorageClass
+		}
+
+		pazValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "StatefulSet",
+				"statefulSet": map[string]any{
+					"replicas":            pazSpec.Replicas,
+					"podManagementPolicy": "OrderedReady",
+					"persistentvolume": map[string]any{
+						"enabled": true,
+						"volumes": map[string]any{
+							"out-dir": map[string]any{
+								"mountPath":             "/opt/out",
+								"persistentVolumeClaim": pvcClaim,
+							},
+						},
+					},
+				},
+			},
+			"image": buildImageValues(pazSpec.Image, pazSpec.Version),
+			"container": map[string]any{
+				"resources": map[string]any{
+					"requests": map[string]any{"cpu": pazCPU, "memory": pazMem},
+				},
+			},
+			"envs": pazEnvs,
+			"services": map[string]any{
+				"ldap": map[string]any{
+					"containerPort":  pazCfg.LDAPPort,
+					"servicePort":    pazCfg.LDAPPort,
+					"clusterService": true,
+				},
+				"ldaps": map[string]any{
+					"containerPort":  pazCfg.LDAPSPort,
+					"servicePort":    pazCfg.LDAPSPort,
+					"clusterService": true,
+				},
+				"https": map[string]any{
+					"containerPort": pazCfg.HTTPSPort,
+					"servicePort":   pazCfg.HTTPSPort,
+					"dataService":   true,
+				},
+			},
+			"ingress": pazIngressValues,
+		}
+		if len(pazEnvFrom) > 0 {
+			pazValues["envFrom"] = pazEnvFrom
+		}
+	}
+
+	// Assemble pingauthorizepap section
+	var papValues map[string]any
+	if spec.PingAuthorizePAP == nil {
+		papValues = map[string]any{"enabled": false}
+	} else {
+		papCfg := spec.PingAuthorizePAP.Config
+		papIng := resolveIngressSpec(spec.Ingress, spec.PingAuthorizePAP.Ingress)
+		papIng.TLSSecretRef = resolveTLSSecretRef(papIng.TLSSecretRef, spec.TenantID, "paz-pap")
+		papHostname := resolveHostname(papIng.Hostname, "paz-pap", spec.Domain)
+
+		// Derive PING_EXTERNAL_BASE_URL from ingress hostname when not set
+		externalBaseURL := papCfg.ExternalBaseURL
+		if externalBaseURL == "" && papHostname != "" {
+			externalBaseURL = "https://" + papHostname
+		}
+
+		papEnvs := map[string]any{
+			"MAX_HEAP_SIZE":              papCfg.MaxHeapSize,
+			"PING_ENABLE_API_HTTP_CACHE": fmt.Sprintf("%t", *papCfg.EnableAPIHTTPCache),
+		}
+		if externalBaseURL != "" {
+			papEnvs["PING_EXTERNAL_BASE_URL"] = externalBaseURL
+		}
+		if papCfg.OIDCConfigEndpoint != "" {
+			papEnvs["PING_OIDC_CONFIGURATION_ENDPOINT"] = papCfg.OIDCConfigEndpoint
+		}
+		if papCfg.ClientID != "" {
+			papEnvs["PING_CLIENT_ID"] = papCfg.ClientID
+		}
+		if papCfg.PolicyDBSync {
+			papEnvs["PING_POLICY_DB_SYNC"] = "true"
+		}
+		if papCfg.ServerProfileURL != "" {
+			papEnvs["SERVER_PROFILE_URL"] = papCfg.ServerProfileURL
+		}
+		if papCfg.ServerProfileBranch != "" {
+			papEnvs["SERVER_PROFILE_BRANCH"] = papCfg.ServerProfileBranch
+		}
+		if papCfg.ServerProfilePath != "" {
+			papEnvs["SERVER_PROFILE_PATH"] = papCfg.ServerProfilePath
+		}
+
+		papEnvFrom := map[string]any{}
+		if papCfg.SharedSecretRef != "" {
+			papEnvFrom["secretRef"] = []map[string]any{{"name": papCfg.SharedSecretRef}}
+		}
+		if papCfg.EnvConfigMapRef != "" {
+			papEnvFrom["configMapRef"] = []map[string]any{{"name": papCfg.EnvConfigMapRef}}
+		}
+
+		var papIngressValues map[string]any
+		if ingressEnabled(papIng) {
+			papIngressValues = buildIngressValues(papIng, papHostname)
+		} else {
+			papIngressValues = map[string]any{"enabled": false}
+		}
+
+		papValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": 1,
+				},
+			},
+			"image": buildImageValues(spec.PingAuthorizePAP.Image, spec.PingAuthorizePAP.Version),
+			"envs":    papEnvs,
+			"ingress": papIngressValues,
+		}
+		if len(papEnvFrom) > 0 {
+			papValues["envFrom"] = papEnvFrom
+		}
+	}
+
 	values := map[string]any{
 		"global":              globalValues,
 		"pingfederate-admin":  pfAdminValues,
 		"pingfederate-engine": pfEngineValues,
 		"pingdirectory":       pdValues,
 		"pingdataconsole":     pdcValues,
+		"pingaccess-admin":    paAdminValues,
+		"pingaccess-engine":   paEngineValues,
+		"pingauthorize":       pazValues,
+		"pingauthorizepap":    papValues,
 	}
 
 	// Merge PingFederate ValuesOverride
@@ -564,6 +877,30 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		values, err = MergeValues(values, spec.PingDirectory.ValuesOverride)
 		if err != nil {
 			return nil, fmt.Errorf("merge PingDirectory valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingAccess ValuesOverride
+	if spec.PingAccess != nil {
+		values, err = MergeValues(values, spec.PingAccess.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingAccess valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingAuthorize ValuesOverride
+	if spec.PingAuthorize != nil {
+		values, err = MergeValues(values, spec.PingAuthorize.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingAuthorize valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingAuthorizePAP ValuesOverride
+	if spec.PingAuthorizePAP != nil {
+		values, err = MergeValues(values, spec.PingAuthorizePAP.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingAuthorizePAP valuesOverride: %w", err)
 		}
 	}
 

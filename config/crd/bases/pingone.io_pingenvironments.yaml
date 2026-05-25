@@ -82,6 +82,358 @@ spec:
                       tlsSecretRef overrides this.
                     type: string
                 type: object
+              pingAccess:
+                description: PingAccess holds the optional PingAccess deployment configuration.
+                properties:
+                  adminIngress:
+                    description: |-
+                      AdminIngress configures the Kubernetes Ingress for the PingAccess admin console.
+                      Hostname defaults to pa-admin.<spec.domain> when spec.domain is set.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations are merged on top of the global annotations
+                          for this component.
+                        type: object
+                      className:
+                        description: ClassName overrides the global ingressClassName
+                          for this component.
+                        type: string
+                      enabled:
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
+                        type: boolean
+                      hostname:
+                        description: Hostname is the FQDN for this component. Defaults
+                          to <prefix>.<spec.domain> when spec.domain is set.
+                        type: string
+                      tlsSecretRef:
+                        description: TLSSecretRef overrides the global TLS secret
+                          name for this component.
+                        type: string
+                    type: object
+                  config:
+                    description: Config holds PingAccess-specific environment variable
+                      configuration.
+                    properties:
+                      adminPort:
+                        description: 'AdminPort is the HTTPS port for the PingAccess
+                          admin console (PA_ADMIN_PORT). Default: 9000.'
+                        format: int32
+                        type: integer
+                      adminPublicHostname:
+                        description: AdminPublicHostname is the public hostname of
+                          the PA admin node (PA_ADMIN_PUBLIC_HOSTNAME).
+                        type: string
+                      adminSecretRef:
+                        description: AdminSecretRef is the name of a Secret containing
+                          admin credentials.
+                        type: string
+                      enginePort:
+                        description: 'EnginePort is the HTTPS port for the PingAccess
+                          engine (PA_ENGINE_PORT). Default: 3000.'
+                        format: int32
+                        type: integer
+                      enginePublicHostname:
+                        description: EnginePublicHostname is the public hostname of
+                          the PA engine node (PA_ENGINE_PUBLIC_HOSTNAME).
+                        type: string
+                      envConfigMapRef:
+                        description: EnvConfigMapRef is the name of a ConfigMap with
+                          additional env vars to inject.
+                        type: string
+                      fipsModeOn:
+                        description: 'FIPSModeOn enables FIPS mode (FIPS_MODE_ON).
+                          Default: false.'
+                        type: boolean
+                      javaRamPercentage:
+                        description: 'JavaRAMPercentage is the percentage of container
+                          memory for the JVM (JAVA_RAM_PERCENTAGE). Default: 60.0.'
+                        type: string
+                      operationalMode:
+                        description: 'OperationalMode is one of STANDALONE, CLUSTERED_CONSOLE,
+                          CLUSTERED_ENGINE (OPERATIONAL_MODE). Default: STANDALONE.'
+                        type: string
+                      serverProfileBranch:
+                        description: ServerProfileBranch is the Git branch to check
+                          out (SERVER_PROFILE_BRANCH).
+                        type: string
+                      serverProfilePath:
+                        description: ServerProfilePath is the subdirectory within
+                          the git repo (SERVER_PROFILE_PATH).
+                        type: string
+                      serverProfileURL:
+                        description: ServerProfileURL is the Git HTTPS URL of the
+                          server profile repo (SERVER_PROFILE_URL).
+                        type: string
+                    type: object
+                  engineIngress:
+                    description: |-
+                      EngineIngress configures the Kubernetes Ingress for the PingAccess engine.
+                      Hostname defaults to pa.<spec.domain> when spec.domain is set.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations are merged on top of the global annotations
+                          for this component.
+                        type: object
+                      className:
+                        description: ClassName overrides the global ingressClassName
+                          for this component.
+                        type: string
+                      enabled:
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
+                        type: boolean
+                      hostname:
+                        description: Hostname is the FQDN for this component. Defaults
+                          to <prefix>.<spec.domain> when spec.domain is set.
+                        type: string
+                      tlsSecretRef:
+                        description: TLSSecretRef overrides the global TLS secret
+                          name for this component.
+                        type: string
+                    type: object
+                  image:
+                    description: Image is the container image repository. Omit to
+                      use the chart's default.
+                    type: string
+                  replicas:
+                    description: 'Replicas is the desired number of PingAccess engine
+                      pods. Default: 1.'
+                    format: int32
+                    type: integer
+                  valuesOverride:
+                    description: ValuesOverride is merged on top of the base Helm
+                      values as raw JSON.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  version:
+                    description: Version is the container image tag or full image
+                      reference (e.g. 8.1.0-edge).
+                    type: string
+                type: object
+              pingAuthorize:
+                description: PingAuthorize holds the optional PingAuthorize Policy
+                  Decision Point deployment configuration.
+                properties:
+                  config:
+                    description: Config holds PingAuthorize-specific environment variable
+                      configuration.
+                    properties:
+                      adminSecretRef:
+                        description: AdminSecretRef is the name of a Secret containing
+                          the root user password (ROOT_USER_PASSWORD_FILE).
+                        type: string
+                      adminUserName:
+                        description: 'AdminUserName is the admin user (ADMIN_USER_NAME).
+                          Default: admin.'
+                        type: string
+                      encryptionSecretRef:
+                        description: EncryptionSecretRef is the name of a Secret containing
+                          the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
+                        type: string
+                      envConfigMapRef:
+                        description: EnvConfigMapRef is the name of a ConfigMap with
+                          additional env vars to inject.
+                        type: string
+                      httpsPort:
+                        description: 'HTTPSPort is the container HTTPS port (HTTPS_PORT).
+                          Default: 1443.'
+                        format: int32
+                        type: integer
+                      ldapPort:
+                        description: 'LDAPPort is the container LDAP port (LDAP_PORT).
+                          Default: 1389.'
+                        format: int32
+                        type: integer
+                      ldapsPort:
+                        description: 'LDAPSPort is the container LDAPS port (LDAPS_PORT).
+                          Default: 1636.'
+                        format: int32
+                        type: integer
+                      maxHeapSize:
+                        description: 'MaxHeapSize is the JVM maximum heap size (MAX_HEAP_SIZE).
+                          Default: 1g.'
+                        type: string
+                      retryTimeoutSeconds:
+                        description: 'RetryTimeoutSeconds is the timeout for startup
+                          operations (RETRY_TIMEOUT_SECONDS). Default: 180.'
+                        format: int32
+                        type: integer
+                      serverProfileBranch:
+                        description: ServerProfileBranch is the Git branch to check
+                          out (SERVER_PROFILE_BRANCH).
+                        type: string
+                      serverProfilePath:
+                        description: ServerProfilePath is the subdirectory within
+                          the git repo (SERVER_PROFILE_PATH).
+                        type: string
+                      serverProfileURL:
+                        description: ServerProfileURL is the Git HTTPS URL of the
+                          server profile repo (SERVER_PROFILE_URL).
+                        type: string
+                      userBaseDN:
+                        description: 'UserBaseDN is the base DN for user data (USER_BASE_DN).
+                          Default: dc=example,dc=com.'
+                        type: string
+                    type: object
+                  image:
+                    description: Image is the container image repository. Omit to
+                      use the chart's default.
+                    type: string
+                  ingress:
+                    description: |-
+                      Ingress configures the Kubernetes Ingress for the PingAuthorize management interface.
+                      Hostname defaults to paz.<spec.domain> when spec.domain is set.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations are merged on top of the global annotations
+                          for this component.
+                        type: object
+                      className:
+                        description: ClassName overrides the global ingressClassName
+                          for this component.
+                        type: string
+                      enabled:
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
+                        type: boolean
+                      hostname:
+                        description: Hostname is the FQDN for this component. Defaults
+                          to <prefix>.<spec.domain> when spec.domain is set.
+                        type: string
+                      tlsSecretRef:
+                        description: TLSSecretRef overrides the global TLS secret
+                          name for this component.
+                        type: string
+                    type: object
+                  replicas:
+                    description: 'Replicas is the desired number of PingAuthorize
+                      pods. Default: 1.'
+                    format: int32
+                    type: integer
+                  storageClass:
+                    description: StorageClass is the storage class used for PersistentVolumeClaims.
+                    type: string
+                  storageSize:
+                    description: 'StorageSize is the size of the /opt/out PVC. Default:
+                      8Gi.'
+                    type: string
+                  valuesOverride:
+                    description: ValuesOverride is merged on top of the base Helm
+                      values as raw JSON.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  version:
+                    description: Version is the container image tag or full image
+                      reference (e.g. 10.3.0.0-edge).
+                    type: string
+                type: object
+              pingAuthorizePAP:
+                description: |-
+                  PingAuthorizePAP holds the optional PingAuthorize Policy Editor (PAP) deployment configuration.
+                  Automatically enabled when pingAuthorize is set; set enabled via this field when needed independently.
+                properties:
+                  config:
+                    description: Config holds PingAuthorizePAP-specific environment
+                      variable configuration.
+                    properties:
+                      clientID:
+                        description: ClientID is the OIDC client identifier (PING_CLIENT_ID).
+                        type: string
+                      enableAPIHTTPCache:
+                        description: 'EnableAPIHTTPCache controls HTTP API caching
+                          (PING_ENABLE_API_HTTP_CACHE). Default: true.'
+                        type: boolean
+                      envConfigMapRef:
+                        description: EnvConfigMapRef is the name of a ConfigMap with
+                          additional env vars to inject.
+                        type: string
+                      externalBaseURL:
+                        description: |-
+                          ExternalBaseURL is the external hostname and port for PAP API access (PING_EXTERNAL_BASE_URL).
+                          Derived as https://paz-pap.<spec.domain> when spec.domain is set and this is empty.
+                        type: string
+                      maxHeapSize:
+                        description: 'MaxHeapSize is the JVM heap size (MAX_HEAP_SIZE).
+                          Default: 384m.'
+                        type: string
+                      oidcConfigEndpoint:
+                        description: OIDCConfigEndpoint is the OIDC provider configuration
+                          URL (PING_OIDC_CONFIGURATION_ENDPOINT).
+                        type: string
+                      policyDBSync:
+                        description: PolicyDBSync enables database creation/upgrade
+                          mode (PING_POLICY_DB_SYNC).
+                        type: boolean
+                      serverProfileBranch:
+                        description: ServerProfileBranch is the Git branch to check
+                          out (SERVER_PROFILE_BRANCH).
+                        type: string
+                      serverProfilePath:
+                        description: ServerProfilePath is the subdirectory within
+                          the git repo (SERVER_PROFILE_PATH).
+                        type: string
+                      serverProfileURL:
+                        description: ServerProfileURL is the Git HTTPS URL of the
+                          server profile repo (SERVER_PROFILE_URL).
+                        type: string
+                      sharedSecretRef:
+                        description: SharedSecretRef is the name of a Secret containing
+                          DECISION_POINT_SHARED_SECRET for PAZ integration.
+                        type: string
+                    type: object
+                  image:
+                    description: Image is the container image repository. Omit to
+                      use the chart's default.
+                    type: string
+                  ingress:
+                    description: |-
+                      Ingress configures the Kubernetes Ingress for the PAP web UI.
+                      Hostname defaults to paz-pap.<spec.domain> when spec.domain is set.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations are merged on top of the global annotations
+                          for this component.
+                        type: object
+                      className:
+                        description: ClassName overrides the global ingressClassName
+                          for this component.
+                        type: string
+                      enabled:
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
+                        type: boolean
+                      hostname:
+                        description: Hostname is the FQDN for this component. Defaults
+                          to <prefix>.<spec.domain> when spec.domain is set.
+                        type: string
+                      tlsSecretRef:
+                        description: TLSSecretRef overrides the global TLS secret
+                          name for this component.
+                        type: string
+                    type: object
+                  valuesOverride:
+                    description: ValuesOverride is merged on top of the base Helm
+                      values as raw JSON.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  version:
+                    description: Version is the container image tag or full image
+                      reference.
+                    type: string
+                type: object
               pingDataConsole:
                 description: |-
                   PingDataConsole configures the PingDataConsole web UI.
@@ -520,6 +872,16 @@ spec:
               phase:
                 description: 'Phase is the current lifecycle phase: Pending, Deploying,
                   Ready, or Failed.'
+                type: string
+              pingAccessRelease:
+                description: PingAccessRelease is the Helm release name for PingAccess.
+                type: string
+              pingAuthorizePAPRelease:
+                description: PingAuthorizePAPRelease is the Helm release name for
+                  PingAuthorizePAP.
+                type: string
+              pingAuthorizeRelease:
+                description: PingAuthorizeRelease is the Helm release name for PingAuthorize.
                 type: string
               pingDirectoryRelease:
                 description: PingDirectoryRelease is the Helm release name for PingDirectory.

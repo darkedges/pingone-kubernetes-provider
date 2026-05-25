@@ -134,6 +134,15 @@ func (r *PingEnvironmentReconciler) setReady(ctx context.Context, env *pingonev1
 	env.Status.Phase = "Ready"
 	env.Status.PingFederateRelease = releaseName
 	env.Status.PingDirectoryRelease = releaseName
+	if env.Spec.PingAccess != nil {
+		env.Status.PingAccessRelease = releaseName
+	}
+	if env.Spec.PingAuthorize != nil {
+		env.Status.PingAuthorizeRelease = releaseName
+	}
+	if env.Spec.PingAuthorizePAP != nil {
+		env.Status.PingAuthorizePAPRelease = releaseName
+	}
 	env.Status.ObservedGeneration = env.Generation
 	apimeta.SetStatusCondition(&env.Status.Conditions, metav1.Condition{
 		Type:               "Ready",

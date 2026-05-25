@@ -35,6 +35,150 @@ type IngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// PingAccessConfig maps to the env vars consumed by the pingaccess container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingaccess/README.html
+type PingAccessConfig struct {
+	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
+	ServerProfileURL string `json:"serverProfileURL,omitempty"`
+	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
+	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
+	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
+	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// AdminPort is the HTTPS port for the PingAccess admin console (PA_ADMIN_PORT). Default: 9000.
+	AdminPort int32 `json:"adminPort,omitempty"`
+	// EnginePort is the HTTPS port for the PingAccess engine (PA_ENGINE_PORT). Default: 3000.
+	EnginePort int32 `json:"enginePort,omitempty"`
+	// AdminPublicHostname is the public hostname of the PA admin node (PA_ADMIN_PUBLIC_HOSTNAME).
+	AdminPublicHostname string `json:"adminPublicHostname,omitempty"`
+	// EnginePublicHostname is the public hostname of the PA engine node (PA_ENGINE_PUBLIC_HOSTNAME).
+	EnginePublicHostname string `json:"enginePublicHostname,omitempty"`
+	// OperationalMode is one of STANDALONE, CLUSTERED_CONSOLE, CLUSTERED_ENGINE (OPERATIONAL_MODE). Default: STANDALONE.
+	OperationalMode string `json:"operationalMode,omitempty"`
+	// FIPSModeOn enables FIPS mode (FIPS_MODE_ON). Default: false.
+	FIPSModeOn bool `json:"fipsModeOn,omitempty"`
+	// JavaRAMPercentage is the percentage of container memory for the JVM (JAVA_RAM_PERCENTAGE). Default: 60.0.
+	JavaRAMPercentage string `json:"javaRamPercentage,omitempty"`
+	// AdminSecretRef is the name of a Secret containing admin credentials.
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingAccessSpec defines the desired state of a PingAccess deployment.
+type PingAccessSpec struct {
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag or full image reference (e.g. 8.1.0-edge).
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingAccess engine pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
+	// AdminIngress configures the Kubernetes Ingress for the PingAccess admin console.
+	// Hostname defaults to pa-admin.<spec.domain> when spec.domain is set.
+	AdminIngress IngressSpec `json:"adminIngress,omitempty"`
+	// EngineIngress configures the Kubernetes Ingress for the PingAccess engine.
+	// Hostname defaults to pa.<spec.domain> when spec.domain is set.
+	EngineIngress IngressSpec `json:"engineIngress,omitempty"`
+	// Config holds PingAccess-specific environment variable configuration.
+	Config PingAccessConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
+// PingAuthorizeConfig maps to the env vars consumed by the pingauthorize container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingauthorize/README.html
+type PingAuthorizeConfig struct {
+	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
+	ServerProfileURL string `json:"serverProfileURL,omitempty"`
+	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
+	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
+	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
+	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// LDAPPort is the container LDAP port (LDAP_PORT). Default: 1389.
+	LDAPPort int32 `json:"ldapPort,omitempty"`
+	// LDAPSPort is the container LDAPS port (LDAPS_PORT). Default: 1636.
+	LDAPSPort int32 `json:"ldapsPort,omitempty"`
+	// HTTPSPort is the container HTTPS port (HTTPS_PORT). Default: 1443.
+	HTTPSPort int32 `json:"httpsPort,omitempty"`
+	// UserBaseDN is the base DN for user data (USER_BASE_DN). Default: dc=example,dc=com.
+	UserBaseDN string `json:"userBaseDN,omitempty"`
+	// AdminUserName is the admin user (ADMIN_USER_NAME). Default: admin.
+	AdminUserName string `json:"adminUserName,omitempty"`
+	// RetryTimeoutSeconds is the timeout for startup operations (RETRY_TIMEOUT_SECONDS). Default: 180.
+	RetryTimeoutSeconds int32 `json:"retryTimeoutSeconds,omitempty"`
+	// MaxHeapSize is the JVM maximum heap size (MAX_HEAP_SIZE). Default: 1g.
+	MaxHeapSize string `json:"maxHeapSize,omitempty"`
+	// AdminSecretRef is the name of a Secret containing the root user password (ROOT_USER_PASSWORD_FILE).
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// EncryptionSecretRef is the name of a Secret containing the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
+	EncryptionSecretRef string `json:"encryptionSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingAuthorizePAPConfig maps to the env vars consumed by the pingauthorizepap container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingauthorizepap/README.html
+type PingAuthorizePAPConfig struct {
+	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
+	ServerProfileURL string `json:"serverProfileURL,omitempty"`
+	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
+	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
+	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
+	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// ExternalBaseURL is the external hostname and port for PAP API access (PING_EXTERNAL_BASE_URL).
+	// Derived as https://paz-pap.<spec.domain> when spec.domain is set and this is empty.
+	ExternalBaseURL string `json:"externalBaseURL,omitempty"`
+	// OIDCConfigEndpoint is the OIDC provider configuration URL (PING_OIDC_CONFIGURATION_ENDPOINT).
+	OIDCConfigEndpoint string `json:"oidcConfigEndpoint,omitempty"`
+	// ClientID is the OIDC client identifier (PING_CLIENT_ID).
+	ClientID string `json:"clientID,omitempty"`
+	// MaxHeapSize is the JVM heap size (MAX_HEAP_SIZE). Default: 384m.
+	MaxHeapSize string `json:"maxHeapSize,omitempty"`
+	// EnableAPIHTTPCache controls HTTP API caching (PING_ENABLE_API_HTTP_CACHE). Default: true.
+	EnableAPIHTTPCache *bool `json:"enableAPIHTTPCache,omitempty"`
+	// PolicyDBSync enables database creation/upgrade mode (PING_POLICY_DB_SYNC).
+	PolicyDBSync bool `json:"policyDBSync,omitempty"`
+	// SharedSecretRef is the name of a Secret containing DECISION_POINT_SHARED_SECRET for PAZ integration.
+	SharedSecretRef string `json:"sharedSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingAuthorizePAPSpec defines the desired state of a PingAuthorize PAP (Policy Editor) deployment.
+type PingAuthorizePAPSpec struct {
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag or full image reference.
+	Version string `json:"version,omitempty"`
+	// Ingress configures the Kubernetes Ingress for the PAP web UI.
+	// Hostname defaults to paz-pap.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Config holds PingAuthorizePAP-specific environment variable configuration.
+	Config PingAuthorizePAPConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
+// PingAuthorizeSpec defines the desired state of a PingAuthorize deployment.
+type PingAuthorizeSpec struct {
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag or full image reference (e.g. 10.3.0.0-edge).
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingAuthorize pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
+	// StorageClass is the storage class used for PersistentVolumeClaims.
+	StorageClass string `json:"storageClass,omitempty"`
+	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
+	StorageSize string `json:"storageSize,omitempty"`
+	// Ingress configures the Kubernetes Ingress for the PingAuthorize management interface.
+	// Hostname defaults to paz.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Config holds PingAuthorize-specific environment variable configuration.
+	Config PingAuthorizeConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
 // PingFederateConfig maps to the env vars consumed by the pingfederate container.
 // See: https://developer.pingidentity.com/devops/docker-images/pingfederate/README.html
 type PingFederateConfig struct {
@@ -207,6 +351,13 @@ type PingEnvironmentSpec struct {
 	// PingDataConsole configures the PingDataConsole web UI.
 	// Automatically enabled when pingDirectory is set; set enabled: false to disable.
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
+	// PingAccess holds the optional PingAccess deployment configuration.
+	PingAccess *PingAccessSpec `json:"pingAccess,omitempty"`
+	// PingAuthorize holds the optional PingAuthorize Policy Decision Point deployment configuration.
+	PingAuthorize *PingAuthorizeSpec `json:"pingAuthorize,omitempty"`
+	// PingAuthorizePAP holds the optional PingAuthorize Policy Editor (PAP) deployment configuration.
+	// Automatically enabled when pingAuthorize is set; set enabled via this field when needed independently.
+	PingAuthorizePAP *PingAuthorizePAPSpec `json:"pingAuthorizePAP,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 }
@@ -221,6 +372,12 @@ type PingEnvironmentStatus struct {
 	PingFederateRelease string `json:"pingFederateRelease,omitempty"`
 	// PingDirectoryRelease is the Helm release name for PingDirectory.
 	PingDirectoryRelease string `json:"pingDirectoryRelease,omitempty"`
+	// PingAccessRelease is the Helm release name for PingAccess.
+	PingAccessRelease string `json:"pingAccessRelease,omitempty"`
+	// PingAuthorizeRelease is the Helm release name for PingAuthorize.
+	PingAuthorizeRelease string `json:"pingAuthorizeRelease,omitempty"`
+	// PingAuthorizePAPRelease is the Helm release name for PingAuthorizePAP.
+	PingAuthorizePAPRelease string `json:"pingAuthorizePAPRelease,omitempty"`
 	// ObservedGeneration is the generation last processed by the reconciler.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
