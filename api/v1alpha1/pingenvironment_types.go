@@ -35,15 +35,32 @@ type IngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// ServerProfileSpec defines one layer of a Ping Identity server profile.
+// See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
+//
+// The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+// Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
+// Profiles are applied bottom-up: the layer named in parent is applied first.
+type ServerProfileSpec struct {
+	// URL is the Git HTTPS URL of the server profile repo.
+	URL string `json:"url,omitempty"`
+	// Branch is the Git branch to check out. Omit to use the repo default branch.
+	Branch string `json:"branch,omitempty"`
+	// Path is the subdirectory within the git repo.
+	Path string `json:"path,omitempty"`
+	// Parent is the key of the parent layer in serverProfileLayers.
+	// Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+	Parent string `json:"parent,omitempty"`
+}
+
 // PingAccessConfig maps to the env vars consumed by the pingaccess container.
 // See: https://developer.pingidentity.com/devops/docker-images/pingaccess/README.html
 type PingAccessConfig struct {
-	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
-	ServerProfileURL string `json:"serverProfileURL,omitempty"`
-	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
-	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
-	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
-	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// ServerProfile is the primary server profile for PingAccess.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers (layered profiles).
+	// Keys are the layer names (e.g. "BASE"); env vars use the uppercased key.
+	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
 	// AdminPort is the HTTPS port for the PingAccess admin console (PA_ADMIN_PORT). Default: 9000.
 	AdminPort int32 `json:"adminPort,omitempty"`
 	// EnginePort is the HTTPS port for the PingAccess engine (PA_ENGINE_PORT). Default: 3000.
@@ -87,12 +104,11 @@ type PingAccessSpec struct {
 // PingAuthorizeConfig maps to the env vars consumed by the pingauthorize container.
 // See: https://developer.pingidentity.com/devops/docker-images/pingauthorize/README.html
 type PingAuthorizeConfig struct {
-	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
-	ServerProfileURL string `json:"serverProfileURL,omitempty"`
-	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
-	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
-	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
-	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// ServerProfile is the primary server profile for PingAuthorize.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers (layered profiles).
+	// Keys are the layer names (e.g. "PAZ", "BASE"); env vars use the uppercased key.
+	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
 	// LDAPPort is the container LDAP port (LDAP_PORT). Default: 1389.
 	LDAPPort int32 `json:"ldapPort,omitempty"`
 	// LDAPSPort is the container LDAPS port (LDAPS_PORT). Default: 1636.
@@ -118,12 +134,10 @@ type PingAuthorizeConfig struct {
 // PingAuthorizePAPConfig maps to the env vars consumed by the pingauthorizepap container.
 // See: https://developer.pingidentity.com/devops/docker-images/pingauthorizepap/README.html
 type PingAuthorizePAPConfig struct {
-	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
-	ServerProfileURL string `json:"serverProfileURL,omitempty"`
-	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
-	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
-	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
-	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// ServerProfile is the primary server profile for PingAuthorizePAP.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers (layered profiles).
+	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
 	// ExternalBaseURL is the external hostname and port for PAP API access (PING_EXTERNAL_BASE_URL).
 	// Derived as https://paz-pap.<spec.domain> when spec.domain is set and this is empty.
 	ExternalBaseURL string `json:"externalBaseURL,omitempty"`
@@ -182,12 +196,11 @@ type PingAuthorizeSpec struct {
 // PingFederateConfig maps to the env vars consumed by the pingfederate container.
 // See: https://developer.pingidentity.com/devops/docker-images/pingfederate/README.html
 type PingFederateConfig struct {
-	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
-	ServerProfileURL string `json:"serverProfileURL,omitempty"`
-	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
-	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
-	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
-	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// ServerProfile is the primary server profile for PingFederate.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers (layered profiles).
+	// Keys are the layer names; env vars use the uppercased key.
+	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
 	// EnginePort is the HTTPS port for the PingFederate runtime engine (PF_ENGINE_PORT). Default: 9031.
 	EnginePort int32 `json:"enginePort,omitempty"`
 	// AdminPort is the HTTPS port for the PingFederate admin console/API (PF_ADMIN_PORT). Default: 9999.
@@ -235,12 +248,11 @@ type PingFederateConfig struct {
 // PingDirectoryConfig maps to the env vars consumed by the pingdirectory container.
 // See: https://developer.pingidentity.com/devops/docker-images/pingdirectory/README.html
 type PingDirectoryConfig struct {
-	// ServerProfileURL is the Git HTTPS URL of the server profile repo (SERVER_PROFILE_URL).
-	ServerProfileURL string `json:"serverProfileURL,omitempty"`
-	// ServerProfileBranch is the Git branch to check out (SERVER_PROFILE_BRANCH).
-	ServerProfileBranch string `json:"serverProfileBranch,omitempty"`
-	// ServerProfilePath is the subdirectory within the git repo (SERVER_PROFILE_PATH).
-	ServerProfilePath string `json:"serverProfilePath,omitempty"`
+	// ServerProfile is the primary server profile for PingDirectory.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers (layered profiles).
+	// Keys are the layer names; env vars use the uppercased key.
+	ServerProfileLayers map[string]ServerProfileSpec `json:"serverProfileLayers,omitempty"`
 	// UserBaseDN is the base DN for user data (USER_BASE_DN). Default: dc=example,dc=com.
 	UserBaseDN string `json:"userBaseDN,omitempty"`
 	// ReplicationBaseDNs is additional base DNs for replication (REPLICATION_BASE_DNS).
@@ -356,7 +368,6 @@ type PingEnvironmentSpec struct {
 	// PingAuthorize holds the optional PingAuthorize Policy Decision Point deployment configuration.
 	PingAuthorize *PingAuthorizeSpec `json:"pingAuthorize,omitempty"`
 	// PingAuthorizePAP holds the optional PingAuthorize Policy Editor (PAP) deployment configuration.
-	// Automatically enabled when pingAuthorize is set; set enabled via this field when needed independently.
 	PingAuthorizePAP *PingAuthorizePAPSpec `json:"pingAuthorizePAP,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`

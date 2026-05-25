@@ -195,16 +195,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	// Build PingFederate envs
 	pfEnvs := map[string]any{}
 
-	// Server profile
-	if pfCfg.ServerProfileURL != "" {
-		pfEnvs["SERVER_PROFILE_URL"] = pfCfg.ServerProfileURL
-	}
-	if pfCfg.ServerProfileBranch != "" {
-		pfEnvs["SERVER_PROFILE_BRANCH"] = pfCfg.ServerProfileBranch
-	}
-	if pfCfg.ServerProfilePath != "" {
-		pfEnvs["SERVER_PROFILE_PATH"] = pfCfg.ServerProfilePath
-	}
+	emitServerProfileEnvs(pfEnvs, pfCfg.ServerProfile, pfCfg.ServerProfileLayers)
 	pfEnvs["SERVER_PROFILE_UPDATE"] = "false"
 
 	// Ports (always set after defaults applied)
@@ -383,15 +374,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		// Build PingDirectory envs
 		pdEnvs := map[string]any{}
 
-		if pdCfg.ServerProfileURL != "" {
-			pdEnvs["SERVER_PROFILE_URL"] = pdCfg.ServerProfileURL
-		}
-		if pdCfg.ServerProfileBranch != "" {
-			pdEnvs["SERVER_PROFILE_BRANCH"] = pdCfg.ServerProfileBranch
-		}
-		if pdCfg.ServerProfilePath != "" {
-			pdEnvs["SERVER_PROFILE_PATH"] = pdCfg.ServerProfilePath
-		}
+		emitServerProfileEnvs(pdEnvs, pdCfg.ServerProfile, pdCfg.ServerProfileLayers)
 
 		pdEnvs["USER_BASE_DN"] = pdCfg.UserBaseDN
 		if pdCfg.ReplicationBaseDNs != "" {
@@ -567,15 +550,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 			"JAVA_RAM_PERCENTAGE": paCfg.JavaRAMPercentage,
 			"TAIL_LOG_FILES":      "${SERVER_ROOT_DIR}/log/pingaccess.log",
 		}
-		if paCfg.ServerProfileURL != "" {
-			paEnvs["SERVER_PROFILE_URL"] = paCfg.ServerProfileURL
-		}
-		if paCfg.ServerProfileBranch != "" {
-			paEnvs["SERVER_PROFILE_BRANCH"] = paCfg.ServerProfileBranch
-		}
-		if paCfg.ServerProfilePath != "" {
-			paEnvs["SERVER_PROFILE_PATH"] = paCfg.ServerProfilePath
-		}
+		emitServerProfileEnvs(paEnvs, paCfg.ServerProfile, paCfg.ServerProfileLayers)
 		if paCfg.AdminPublicHostname != "" {
 			paEnvs["PA_ADMIN_PUBLIC_HOSTNAME"] = paCfg.AdminPublicHostname
 		}
@@ -688,15 +663,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 			"MAX_HEAP_SIZE":         pazCfg.MaxHeapSize,
 			"TAIL_LOG_FILES":        "${SERVER_ROOT_DIR}/logs/access ${SERVER_ROOT_DIR}/logs/errors",
 		}
-		if pazCfg.ServerProfileURL != "" {
-			pazEnvs["SERVER_PROFILE_URL"] = pazCfg.ServerProfileURL
-		}
-		if pazCfg.ServerProfileBranch != "" {
-			pazEnvs["SERVER_PROFILE_BRANCH"] = pazCfg.ServerProfileBranch
-		}
-		if pazCfg.ServerProfilePath != "" {
-			pazEnvs["SERVER_PROFILE_PATH"] = pazCfg.ServerProfilePath
-		}
+		emitServerProfileEnvs(pazEnvs, pazCfg.ServerProfile, pazCfg.ServerProfileLayers)
 
 		pazEnvFrom := map[string]any{}
 		if pazCfg.AdminSecretRef != "" || pazCfg.EncryptionSecretRef != "" {
@@ -811,15 +778,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		if papCfg.PolicyDBSync {
 			papEnvs["PING_POLICY_DB_SYNC"] = "true"
 		}
-		if papCfg.ServerProfileURL != "" {
-			papEnvs["SERVER_PROFILE_URL"] = papCfg.ServerProfileURL
-		}
-		if papCfg.ServerProfileBranch != "" {
-			papEnvs["SERVER_PROFILE_BRANCH"] = papCfg.ServerProfileBranch
-		}
-		if papCfg.ServerProfilePath != "" {
-			papEnvs["SERVER_PROFILE_PATH"] = papCfg.ServerProfilePath
-		}
+		emitServerProfileEnvs(papEnvs, papCfg.ServerProfile, papCfg.ServerProfileLayers)
 
 		papEnvFrom := map[string]any{}
 		if papCfg.SharedSecretRef != "" {
@@ -905,6 +864,42 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	}
 
 	return values, nil
+}
+
+// emitServerProfileEnvs writes SERVER_PROFILE_* env vars from a layered profile spec.
+// The base profile maps to SERVER_PROFILE_URL/_BRANCH/_PATH/_PARENT.
+// Each entry in layers maps to SERVER_PROFILE_<UPPERCASED_KEY>_URL etc.
+func emitServerProfileEnvs(envs map[string]any, profile *pingonev1alpha1.ServerProfileSpec, layers map[string]pingonev1alpha1.ServerProfileSpec) {
+	if profile == nil {
+		return
+	}
+	if profile.URL != "" {
+		envs["SERVER_PROFILE_URL"] = profile.URL
+	}
+	if profile.Branch != "" {
+		envs["SERVER_PROFILE_BRANCH"] = profile.Branch
+	}
+	if profile.Path != "" {
+		envs["SERVER_PROFILE_PATH"] = profile.Path
+	}
+	if profile.Parent != "" {
+		envs["SERVER_PROFILE_PARENT"] = profile.Parent
+	}
+	for name, layer := range layers {
+		k := strings.ToUpper(name)
+		if layer.URL != "" {
+			envs["SERVER_PROFILE_"+k+"_URL"] = layer.URL
+		}
+		if layer.Branch != "" {
+			envs["SERVER_PROFILE_"+k+"_BRANCH"] = layer.Branch
+		}
+		if layer.Path != "" {
+			envs["SERVER_PROFILE_"+k+"_PATH"] = layer.Path
+		}
+		if layer.Parent != "" {
+			envs["SERVER_PROFILE_"+k+"_PARENT"] = layer.Parent
+		}
+	}
 }
 
 // firstNonEmpty returns the first non-empty string from the arguments.

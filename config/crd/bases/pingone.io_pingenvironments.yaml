@@ -156,18 +156,59 @@ spec:
                         description: 'OperationalMode is one of STANDALONE, CLUSTERED_CONSOLE,
                           CLUSTERED_ENGINE (OPERATIONAL_MODE). Default: STANDALONE.'
                         type: string
-                      serverProfileBranch:
-                        description: ServerProfileBranch is the Git branch to check
-                          out (SERVER_PROFILE_BRANCH).
-                        type: string
-                      serverProfilePath:
-                        description: ServerProfilePath is the subdirectory within
-                          the git repo (SERVER_PROFILE_PATH).
-                        type: string
-                      serverProfileURL:
-                        description: ServerProfileURL is the Git HTTPS URL of the
-                          server profile repo (SERVER_PROFILE_URL).
-                        type: string
+                      serverProfile:
+                        description: ServerProfile is the primary server profile for
+                          PingAccess.
+                        properties:
+                          branch:
+                            description: Branch is the Git branch to check out. Omit
+                              to use the repo default branch.
+                            type: string
+                          parent:
+                            description: |-
+                              Parent is the key of the parent layer in serverProfileLayers.
+                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                            type: string
+                          path:
+                            description: Path is the subdirectory within the git repo.
+                            type: string
+                          url:
+                            description: URL is the Git HTTPS URL of the server profile
+                              repo.
+                            type: string
+                        type: object
+                      serverProfileLayers:
+                        additionalProperties:
+                          description: |-
+                            ServerProfileSpec defines one layer of a Ping Identity server profile.
+                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
+
+                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
+                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                          properties:
+                            branch:
+                              description: Branch is the Git branch to check out.
+                                Omit to use the repo default branch.
+                              type: string
+                            parent:
+                              description: |-
+                                Parent is the key of the parent layer in serverProfileLayers.
+                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              type: string
+                            path:
+                              description: Path is the subdirectory within the git
+                                repo.
+                              type: string
+                            url:
+                              description: URL is the Git HTTPS URL of the server
+                                profile repo.
+                              type: string
+                          type: object
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names (e.g. "BASE"); env vars use the uppercased key.
+                        type: object
                     type: object
                   engineIngress:
                     description: |-
@@ -265,18 +306,59 @@ spec:
                           operations (RETRY_TIMEOUT_SECONDS). Default: 180.'
                         format: int32
                         type: integer
-                      serverProfileBranch:
-                        description: ServerProfileBranch is the Git branch to check
-                          out (SERVER_PROFILE_BRANCH).
-                        type: string
-                      serverProfilePath:
-                        description: ServerProfilePath is the subdirectory within
-                          the git repo (SERVER_PROFILE_PATH).
-                        type: string
-                      serverProfileURL:
-                        description: ServerProfileURL is the Git HTTPS URL of the
-                          server profile repo (SERVER_PROFILE_URL).
-                        type: string
+                      serverProfile:
+                        description: ServerProfile is the primary server profile for
+                          PingAuthorize.
+                        properties:
+                          branch:
+                            description: Branch is the Git branch to check out. Omit
+                              to use the repo default branch.
+                            type: string
+                          parent:
+                            description: |-
+                              Parent is the key of the parent layer in serverProfileLayers.
+                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                            type: string
+                          path:
+                            description: Path is the subdirectory within the git repo.
+                            type: string
+                          url:
+                            description: URL is the Git HTTPS URL of the server profile
+                              repo.
+                            type: string
+                        type: object
+                      serverProfileLayers:
+                        additionalProperties:
+                          description: |-
+                            ServerProfileSpec defines one layer of a Ping Identity server profile.
+                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
+
+                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
+                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                          properties:
+                            branch:
+                              description: Branch is the Git branch to check out.
+                                Omit to use the repo default branch.
+                              type: string
+                            parent:
+                              description: |-
+                                Parent is the key of the parent layer in serverProfileLayers.
+                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              type: string
+                            path:
+                              description: Path is the subdirectory within the git
+                                repo.
+                              type: string
+                            url:
+                              description: URL is the Git HTTPS URL of the server
+                                profile repo.
+                              type: string
+                          type: object
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names (e.g. "PAZ", "BASE"); env vars use the uppercased key.
+                        type: object
                       userBaseDN:
                         description: 'UserBaseDN is the base DN for user data (USER_BASE_DN).
                           Default: dc=example,dc=com.'
@@ -338,9 +420,8 @@ spec:
                     type: string
                 type: object
               pingAuthorizePAP:
-                description: |-
-                  PingAuthorizePAP holds the optional PingAuthorize Policy Editor (PAP) deployment configuration.
-                  Automatically enabled when pingAuthorize is set; set enabled via this field when needed independently.
+                description: PingAuthorizePAP holds the optional PingAuthorize Policy
+                  Editor (PAP) deployment configuration.
                 properties:
                   config:
                     description: Config holds PingAuthorizePAP-specific environment
@@ -374,18 +455,58 @@ spec:
                         description: PolicyDBSync enables database creation/upgrade
                           mode (PING_POLICY_DB_SYNC).
                         type: boolean
-                      serverProfileBranch:
-                        description: ServerProfileBranch is the Git branch to check
-                          out (SERVER_PROFILE_BRANCH).
-                        type: string
-                      serverProfilePath:
-                        description: ServerProfilePath is the subdirectory within
-                          the git repo (SERVER_PROFILE_PATH).
-                        type: string
-                      serverProfileURL:
-                        description: ServerProfileURL is the Git HTTPS URL of the
-                          server profile repo (SERVER_PROFILE_URL).
-                        type: string
+                      serverProfile:
+                        description: ServerProfile is the primary server profile for
+                          PingAuthorizePAP.
+                        properties:
+                          branch:
+                            description: Branch is the Git branch to check out. Omit
+                              to use the repo default branch.
+                            type: string
+                          parent:
+                            description: |-
+                              Parent is the key of the parent layer in serverProfileLayers.
+                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                            type: string
+                          path:
+                            description: Path is the subdirectory within the git repo.
+                            type: string
+                          url:
+                            description: URL is the Git HTTPS URL of the server profile
+                              repo.
+                            type: string
+                        type: object
+                      serverProfileLayers:
+                        additionalProperties:
+                          description: |-
+                            ServerProfileSpec defines one layer of a Ping Identity server profile.
+                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
+
+                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
+                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                          properties:
+                            branch:
+                              description: Branch is the Git branch to check out.
+                                Omit to use the repo default branch.
+                              type: string
+                            parent:
+                              description: |-
+                                Parent is the key of the parent layer in serverProfileLayers.
+                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              type: string
+                            path:
+                              description: Path is the subdirectory within the git
+                                repo.
+                              type: string
+                            url:
+                              description: URL is the Git HTTPS URL of the server
+                                profile repo.
+                              type: string
+                          type: object
+                        description: ServerProfileLayers defines additional named
+                          profile layers (layered profiles).
+                        type: object
                       sharedSecretRef:
                         description: SharedSecretRef is the name of a Secret containing
                           DECISION_POINT_SHARED_SECRET for PAZ integration.
@@ -556,18 +677,59 @@ spec:
                           operations (RETRY_TIMEOUT_SECONDS). Default: 180.'
                         format: int32
                         type: integer
-                      serverProfileBranch:
-                        description: ServerProfileBranch is the Git branch to check
-                          out (SERVER_PROFILE_BRANCH).
-                        type: string
-                      serverProfilePath:
-                        description: ServerProfilePath is the subdirectory within
-                          the git repo (SERVER_PROFILE_PATH).
-                        type: string
-                      serverProfileURL:
-                        description: ServerProfileURL is the Git HTTPS URL of the
-                          server profile repo (SERVER_PROFILE_URL).
-                        type: string
+                      serverProfile:
+                        description: ServerProfile is the primary server profile for
+                          PingDirectory.
+                        properties:
+                          branch:
+                            description: Branch is the Git branch to check out. Omit
+                              to use the repo default branch.
+                            type: string
+                          parent:
+                            description: |-
+                              Parent is the key of the parent layer in serverProfileLayers.
+                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                            type: string
+                          path:
+                            description: Path is the subdirectory within the git repo.
+                            type: string
+                          url:
+                            description: URL is the Git HTTPS URL of the server profile
+                              repo.
+                            type: string
+                        type: object
+                      serverProfileLayers:
+                        additionalProperties:
+                          description: |-
+                            ServerProfileSpec defines one layer of a Ping Identity server profile.
+                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
+
+                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
+                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                          properties:
+                            branch:
+                              description: Branch is the Git branch to check out.
+                                Omit to use the repo default branch.
+                              type: string
+                            parent:
+                              description: |-
+                                Parent is the key of the parent layer in serverProfileLayers.
+                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              type: string
+                            path:
+                              description: Path is the subdirectory within the git
+                                repo.
+                              type: string
+                            url:
+                              description: URL is the Git HTTPS URL of the server
+                                profile repo.
+                              type: string
+                          type: object
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names; env vars use the uppercased key.
+                        type: object
                       userBaseDN:
                         description: 'UserBaseDN is the base DN for user data (USER_BASE_DN).
                           Default: dc=example,dc=com.'
@@ -724,18 +886,59 @@ spec:
                           (PF_PROVISIONER_NODE_ID). Default: 1.'
                         format: int32
                         type: integer
-                      serverProfileBranch:
-                        description: ServerProfileBranch is the Git branch to check
-                          out (SERVER_PROFILE_BRANCH).
-                        type: string
-                      serverProfilePath:
-                        description: ServerProfilePath is the subdirectory within
-                          the git repo (SERVER_PROFILE_PATH).
-                        type: string
-                      serverProfileURL:
-                        description: ServerProfileURL is the Git HTTPS URL of the
-                          server profile repo (SERVER_PROFILE_URL).
-                        type: string
+                      serverProfile:
+                        description: ServerProfile is the primary server profile for
+                          PingFederate.
+                        properties:
+                          branch:
+                            description: Branch is the Git branch to check out. Omit
+                              to use the repo default branch.
+                            type: string
+                          parent:
+                            description: |-
+                              Parent is the key of the parent layer in serverProfileLayers.
+                              Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                            type: string
+                          path:
+                            description: Path is the subdirectory within the git repo.
+                            type: string
+                          url:
+                            description: URL is the Git HTTPS URL of the server profile
+                              repo.
+                            type: string
+                        type: object
+                      serverProfileLayers:
+                        additionalProperties:
+                          description: |-
+                            ServerProfileSpec defines one layer of a Ping Identity server profile.
+                            See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
+
+                            The base layer maps to SERVER_PROFILE_URL / _BRANCH / _PATH / _PARENT.
+                            Named layers in serverProfileLayers map to SERVER_PROFILE_<NAME>_URL etc.
+                            Profiles are applied bottom-up: the layer named in parent is applied first.
+                          properties:
+                            branch:
+                              description: Branch is the Git branch to check out.
+                                Omit to use the repo default branch.
+                              type: string
+                            parent:
+                              description: |-
+                                Parent is the key of the parent layer in serverProfileLayers.
+                                Causes SERVER_PROFILE_PARENT (or SERVER_PROFILE_<NAME>_PARENT for named layers) to be set.
+                              type: string
+                            path:
+                              description: Path is the subdirectory within the git
+                                repo.
+                              type: string
+                            url:
+                              description: URL is the Git HTTPS URL of the server
+                                profile repo.
+                              type: string
+                          type: object
+                        description: |-
+                          ServerProfileLayers defines additional named profile layers (layered profiles).
+                          Keys are the layer names; env vars use the uppercased key.
+                        type: object
                     type: object
                   engineIngress:
                     description: |-
