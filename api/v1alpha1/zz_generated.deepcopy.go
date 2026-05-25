@@ -27,10 +27,8 @@ func (in *ContainerSpec) DeepCopyInto(out *ContainerSpec) {
 	*out = *in
 	if in.WaitFor != nil {
 		in, out := &in.WaitFor, &out.WaitFor
-		*out = make(map[string]WaitForSpec, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		*out = make([]WaitForSpec, len(*in))
+		copy(*out, *in)
 	}
 }
 

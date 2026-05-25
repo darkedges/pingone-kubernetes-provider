@@ -37,6 +37,11 @@ type IngressSpec struct {
 
 // WaitForSpec defines a single service dependency that must be reachable before the container starts.
 type WaitForSpec struct {
+	// Application is the logical name of the Ping product to wait for.
+	// Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+	// pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+	// The operator resolves this to the correct Helm sub-chart service name automatically.
+	Application string `json:"application"`
 	// Service is the port/service type to probe (e.g. ldaps, https, ldap).
 	Service string `json:"service"`
 	// TimeoutSeconds is how long to wait before giving up. Default: 300.
@@ -45,9 +50,8 @@ type WaitForSpec struct {
 
 // ContainerSpec holds container-level settings that apply on top of the chart defaults.
 type ContainerSpec struct {
-	// WaitFor defines services this container waits for before starting.
-	// Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
-	WaitFor map[string]WaitForSpec `json:"waitFor,omitempty"`
+	// WaitFor is a list of services this container waits for before starting.
+	WaitFor []WaitForSpec `json:"waitFor,omitempty"`
 }
 
 // ServerProfileSpec defines one layer of a Ping Identity server profile.

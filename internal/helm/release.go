@@ -836,8 +836,32 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	return values, nil
 }
 
+// resolveWaitForKey maps a logical Ping product name to the ping-devops Helm sub-chart key.
+func resolveWaitForKey(application string) string {
+	switch strings.ToLower(application) {
+	case "pingdirectory":
+		return "pingdirectory"
+	case "pingfederate", "pingfederateengine":
+		return "pingfederate-engine"
+	case "pingfederateadmin":
+		return "pingfederate-admin"
+	case "pingaccess", "pingaccessengine":
+		return "pingaccess-engine"
+	case "pingaccessadmin":
+		return "pingaccess-admin"
+	case "pingauthorize":
+		return "pingauthorize"
+	case "pingauthorizepap":
+		return "pingauthorizepap"
+	case "pingdataconsole":
+		return "pingdataconsole"
+	default:
+		return strings.ToLower(application)
+	}
+}
+
 // buildContainerValues constructs the container map, merging resource requests with
-// any waitFor dependencies. Returns nil when there is nothing to set.
+// any waitFor dependencies. Returns an empty map when there is nothing to set.
 func buildContainerValues(cpu, memory string, container pingonev1alpha1.ContainerSpec) map[string]any {
 	m := map[string]any{}
 	if cpu != "" || memory != "" {
@@ -852,12 +876,12 @@ func buildContainerValues(cpu, memory string, container pingonev1alpha1.Containe
 	}
 	if len(container.WaitFor) > 0 {
 		wf := make(map[string]any, len(container.WaitFor))
-		for svc, spec := range container.WaitFor {
-			entry := map[string]any{"service": spec.Service}
-			if spec.TimeoutSeconds > 0 {
-				entry["timeoutSeconds"] = spec.TimeoutSeconds
+		for _, w := range container.WaitFor {
+			entry := map[string]any{"service": w.Service}
+			if w.TimeoutSeconds > 0 {
+				entry["timeoutSeconds"] = w.TimeoutSeconds
 			}
-			wf[svc] = entry
+			wf[resolveWaitForKey(w.Application)] = entry
 		}
 		m["waitFor"] = wf
 	}

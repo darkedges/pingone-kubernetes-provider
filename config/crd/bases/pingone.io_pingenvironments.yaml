@@ -215,10 +215,19 @@ spec:
                       service wait conditions.
                     properties:
                       waitFor:
-                        additionalProperties:
+                        description: WaitFor is a list of services this container
+                          waits for before starting.
+                        items:
                           description: WaitForSpec defines a single service dependency
                             that must be reachable before the container starts.
                           properties:
+                            application:
+                              description: |-
+                                Application is the logical name of the Ping product to wait for.
+                                Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+                                pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+                                The operator resolves this to the correct Helm sub-chart service name automatically.
+                              type: string
                             service:
                               description: Service is the port/service type to probe
                                 (e.g. ldaps, https, ldap).
@@ -229,12 +238,10 @@ spec:
                               format: int32
                               type: integer
                           required:
+                          - application
                           - service
                           type: object
-                        description: |-
-                          WaitFor defines services this container waits for before starting.
-                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
-                        type: object
+                        type: array
                     type: object
                   engineIngress:
                     description: |-
@@ -395,10 +402,19 @@ spec:
                       service wait conditions.
                     properties:
                       waitFor:
-                        additionalProperties:
+                        description: WaitFor is a list of services this container
+                          waits for before starting.
+                        items:
                           description: WaitForSpec defines a single service dependency
                             that must be reachable before the container starts.
                           properties:
+                            application:
+                              description: |-
+                                Application is the logical name of the Ping product to wait for.
+                                Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+                                pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+                                The operator resolves this to the correct Helm sub-chart service name automatically.
+                              type: string
                             service:
                               description: Service is the port/service type to probe
                                 (e.g. ldaps, https, ldap).
@@ -409,12 +425,10 @@ spec:
                               format: int32
                               type: integer
                           required:
+                          - application
                           - service
                           type: object
-                        description: |-
-                          WaitFor defines services this container waits for before starting.
-                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
-                        type: object
+                        type: array
                     type: object
                   image:
                     description: Image is the container image repository. Omit to
@@ -569,10 +583,19 @@ spec:
                       service wait conditions.
                     properties:
                       waitFor:
-                        additionalProperties:
+                        description: WaitFor is a list of services this container
+                          waits for before starting.
+                        items:
                           description: WaitForSpec defines a single service dependency
                             that must be reachable before the container starts.
                           properties:
+                            application:
+                              description: |-
+                                Application is the logical name of the Ping product to wait for.
+                                Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+                                pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+                                The operator resolves this to the correct Helm sub-chart service name automatically.
+                              type: string
                             service:
                               description: Service is the port/service type to probe
                                 (e.g. ldaps, https, ldap).
@@ -583,12 +606,10 @@ spec:
                               format: int32
                               type: integer
                           required:
+                          - application
                           - service
                           type: object
-                        description: |-
-                          WaitFor defines services this container waits for before starting.
-                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
-                        type: object
+                        type: array
                     type: object
                   image:
                     description: Image is the container image repository. Omit to
@@ -818,10 +839,19 @@ spec:
                       service wait conditions.
                     properties:
                       waitFor:
-                        additionalProperties:
+                        description: WaitFor is a list of services this container
+                          waits for before starting.
+                        items:
                           description: WaitForSpec defines a single service dependency
                             that must be reachable before the container starts.
                           properties:
+                            application:
+                              description: |-
+                                Application is the logical name of the Ping product to wait for.
+                                Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+                                pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+                                The operator resolves this to the correct Helm sub-chart service name automatically.
+                              type: string
                             service:
                               description: Service is the port/service type to probe
                                 (e.g. ldaps, https, ldap).
@@ -832,12 +862,10 @@ spec:
                               format: int32
                               type: integer
                           required:
+                          - application
                           - service
                           type: object
-                        description: |-
-                          WaitFor defines services this container waits for before starting.
-                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
-                        type: object
+                        type: array
                     type: object
                   image:
                     description: |-
@@ -1049,10 +1077,19 @@ spec:
                       service wait conditions.
                     properties:
                       waitFor:
-                        additionalProperties:
+                        description: WaitFor is a list of services this container
+                          waits for before starting.
+                        items:
                           description: WaitForSpec defines a single service dependency
                             that must be reachable before the container starts.
                           properties:
+                            application:
+                              description: |-
+                                Application is the logical name of the Ping product to wait for.
+                                Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+                                pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+                                The operator resolves this to the correct Helm sub-chart service name automatically.
+                              type: string
                             service:
                               description: Service is the port/service type to probe
                                 (e.g. ldaps, https, ldap).
@@ -1063,12 +1100,10 @@ spec:
                               format: int32
                               type: integer
                           required:
+                          - application
                           - service
                           type: object
-                        description: |-
-                          WaitFor defines services this container waits for before starting.
-                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
-                        type: object
+                        type: array
                     type: object
                   engineIngress:
                     description: |-
