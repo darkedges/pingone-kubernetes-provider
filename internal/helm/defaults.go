@@ -7,6 +7,10 @@ import (
 // applyDefaults fills zero-value fields in spec with the official Ping Identity defaults.
 // It is called before BuildPingValues so that all env var mappings have sensible values.
 func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
+	if spec.PingFederate.Replicas == 0 {
+		spec.PingFederate.Replicas = 1
+	}
+
 	pf := &spec.PingFederate.Config
 
 	if pf.EnginePort == 0 {
@@ -42,6 +46,10 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 
 	if spec.PingDirectory == nil {
 		return
+	}
+
+	if spec.PingDirectory.Replicas == 0 {
+		spec.PingDirectory.Replicas = 1
 	}
 
 	pd := &spec.PingDirectory.Config

@@ -32,6 +32,10 @@ func (in *GlobalIngressSpec) DeepCopy() *GlobalIngressSpec {
 // DeepCopyInto copies all properties of this object into another object of the same type.
 func (in *IngressSpec) DeepCopyInto(out *IngressSpec) {
 	*out = *in
+	if in.Enabled != nil {
+		x := *in.Enabled
+		out.Enabled = &x
+	}
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
 		*out = make(map[string]string, len(*in))
@@ -77,6 +81,26 @@ func (in *PingDirectoryConfig) DeepCopy() *PingDirectoryConfig {
 		return nil
 	}
 	out := new(PingDirectoryConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDataConsoleSpec) DeepCopyInto(out *PingDataConsoleSpec) {
+	*out = *in
+	if in.Enabled != nil {
+		x := *in.Enabled
+		out.Enabled = &x
+	}
+	in.Ingress.DeepCopyInto(&out.Ingress)
+}
+
+// DeepCopy creates a deep copy of PingDataConsoleSpec.
+func (in *PingDataConsoleSpec) DeepCopy() *PingDataConsoleSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDataConsoleSpec)
 	in.DeepCopyInto(out)
 	return out
 }
@@ -150,6 +174,11 @@ func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 		*out = new(PingDirectorySpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PingDataConsole != nil {
+		in, out := &in.PingDataConsole, &out.PingDataConsole
+		*out = new(PingDataConsoleSpec)
+		(*in).DeepCopyInto(*out)
+	}
 }
 
 // DeepCopy creates a deep copy of PingEnvironmentSpec.
@@ -204,29 +233,8 @@ func (in *PingFederateSpec) DeepCopy() *PingFederateSpec {
 }
 
 // DeepCopyInto copies all properties of this object into another object of the same type.
-func (in *PingDataConsoleSpec) DeepCopyInto(out *PingDataConsoleSpec) {
-	*out = *in
-	in.Ingress.DeepCopyInto(&out.Ingress)
-}
-
-// DeepCopy creates a deep copy of PingDataConsoleSpec.
-func (in *PingDataConsoleSpec) DeepCopy() *PingDataConsoleSpec {
-	if in == nil {
-		return nil
-	}
-	out := new(PingDataConsoleSpec)
-	in.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyInto copies all properties of this object into another object of the same type.
 func (in *PingDirectorySpec) DeepCopyInto(out *PingDirectorySpec) {
 	*out = *in
-	if in.Console != nil {
-		in, out := &in.Console, &out.Console
-		*out = new(PingDataConsoleSpec)
-		(*in).DeepCopyInto(*out)
-	}
 	out.Config = in.Config
 	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)
 }

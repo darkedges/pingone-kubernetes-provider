@@ -282,9 +282,13 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		}
 	}
 
+	// Auto-derive TLS secret names when not explicitly set
+	pfIng.TLSSecretRef = resolveTLSSecretRef(pfIng.TLSSecretRef, spec.TenantID, "pf")
+	pfAdminIng.TLSSecretRef = resolveTLSSecretRef(pfAdminIng.TLSSecretRef, spec.TenantID, "pf-admin")
+
 	// Build PingFederate engine ingress
 	var pfEngineIngressValues map[string]any
-	if pfIng.Enabled {
+	if ingressEnabled(pfIng) {
 		pfEngineIngressValues = buildIngressValues(pfIng, engineHostname)
 	} else {
 		pfEngineIngressValues = map[string]any{"enabled": false}
@@ -297,12 +301,14 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		"servicePort":   pfCfg.AdminPort,
 		"dataService":   true,
 	}
-	if pfAdminIng.Enabled {
+	if ingressEnabled(pfAdminIng) {
 		pfAdminIngressValues = buildIngressValues(pfAdminIng, adminHostname)
 		adminSvc["ingressPort"] = 443
 	} else {
 		pfAdminIngressValues = map[string]any{"enabled": false}
 	}
+
+	pfImageValues := buildImageValues(spec.PingFederate.Image, spec.PingFederate.Version)
 
 	// Assemble pingfederate-admin section (admin console, 1 replica)
 	pfAdminValues := map[string]any{
@@ -313,9 +319,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 				"replicas": 1,
 			},
 		},
-		"image": map[string]any{
-			"tag": spec.PingFederate.Version,
-		},
+		"image": pfImageValues,
 		"container": map[string]any{
 			"resources": map[string]any{
 				"requests": map[string]any{
@@ -343,9 +347,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 				"replicas": spec.PingFederate.Replicas,
 			},
 		},
-		"image": map[string]any{
-			"tag": spec.PingFederate.Version,
-		},
+		"image": pfImageValues,
 		"container": map[string]any{
 			"resources": map[string]any{
 				"requests": map[string]any{
@@ -461,9 +463,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					},
 				},
 			},
-			"image": map[string]any{
-				"tag": pdSpec.Version,
-			},
+			"image": buildImageValues(pdSpec.Image, pdSpec.Version),
 			"container": map[string]any{
 				"resources": map[string]any{
 					"requests": map[string]any{
@@ -497,19 +497,24 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		}
 	}
 
-	// Assemble pingdataconsole section
+	// Assemble pingdataconsole section.
+	// Enabled by default when pingDirectory is set; disabled via spec.pingDataConsole.enabled=false.
 	var pdcValues map[string]any
-	if spec.PingDirectory != nil && spec.PingDirectory.Console != nil {
-		pdc := spec.PingDirectory.Console
-		pdcVersion := pdc.Version
-		if pdcVersion == "" {
-			pdcVersion = spec.PingDirectory.Version
+	pdcShouldEnable := spec.PingDirectory != nil &&
+		(spec.PingDataConsole == nil ||
+			spec.PingDataConsole.Enabled == nil ||
+			*spec.PingDataConsole.Enabled)
+	if pdcShouldEnable {
+		var pdc pingonev1alpha1.PingDataConsoleSpec
+		if spec.PingDataConsole != nil {
+			pdc = *spec.PingDataConsole
 		}
 		pdcIng := resolveIngressSpec(spec.Ingress, pdc.Ingress)
+		pdcIng.TLSSecretRef = resolveTLSSecretRef(pdcIng.TLSSecretRef, spec.TenantID, "pd-console")
 		pdcHostname := resolveHostname(pdcIng.Hostname, "pd-console", spec.Domain)
 
 		var pdcIngressValues map[string]any
-		if pdcIng.Enabled {
+		if ingressEnabled(pdcIng) {
 			pdcIngressValues = buildIngressValues(pdcIng, pdcHostname)
 		} else {
 			pdcIngressValues = map[string]any{"enabled": false}
@@ -518,9 +523,15 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		// Cluster service name for PingDirectory: <tenantId>-ping-pingdirectory-cluster
 		pdClusterSvc := fmt.Sprintf("%s-ping-pingdirectory-cluster", spec.TenantID)
 
+		// Console image: use explicit image/version, fall back to PingDirectory's values
+		pdcImage := buildImageValues(
+			firstNonEmpty(pdc.Image, spec.PingDirectory.Image),
+			firstNonEmpty(pdc.Version, spec.PingDirectory.Version),
+		)
+
 		pdcValues = map[string]any{
 			"enabled": true,
-			"image":   map[string]any{"tag": pdcVersion},
+			"image":   pdcImage,
 			"defaultLogin": map[string]any{
 				"server": map[string]any{
 					"host": pdClusterSvc,
@@ -559,9 +570,77 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	return values, nil
 }
 
+// firstNonEmpty returns the first non-empty string from the arguments.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// buildImageValues returns the image map for a Helm sub-chart.
+// The ping-devops chart constructs the final image as {repository}/{name}:{tag}.
+//
+// version may be a bare tag ("13.0.2-edge") or a full reference
+// ("docker.io/pingidentity/pingfederate:13.0.2-edge"). A full reference (contains "/")
+// is split into repository, name, and tag. The explicit repository argument overrides
+// the repository parsed from version when set. Omitting everything lets the chart use
+// its own defaults.
+func buildImageValues(repository, version string) map[string]any {
+	repo, name, tag := repository, "", version
+	if strings.Contains(version, "/") {
+		rest := version
+		if idx := strings.LastIndex(rest, ":"); idx != -1 {
+			tag = rest[idx+1:]
+			rest = rest[:idx]
+		} else {
+			tag = ""
+		}
+		if idx := strings.LastIndex(rest, "/"); idx != -1 {
+			if repository == "" {
+				repo = rest[:idx]
+			}
+			name = rest[idx+1:]
+		} else if repository == "" {
+			repo = rest
+		}
+	}
+	m := map[string]any{}
+	if repo != "" {
+		m["repository"] = repo
+	}
+	if name != "" {
+		m["name"] = name
+	}
+	if tag != "" {
+		m["tag"] = tag
+	}
+	return m
+}
+
+// resolveTLSSecretRef returns explicit if non-empty, otherwise "<tenantID>-<suffix>-tls".
+func resolveTLSSecretRef(explicit, tenantID, suffix string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return fmt.Sprintf("%s-%s-tls", tenantID, suffix)
+}
+
+// ingressEnabled returns true if the resolved ingress should be created.
+func ingressEnabled(ing pingonev1alpha1.IngressSpec) bool {
+	return ing.Enabled != nil && *ing.Enabled
+}
+
 // resolveIngressSpec merges global ingress defaults into a per-component IngressSpec.
 // Component fields take precedence; annotations are merged with global as the base.
+// enabled is inherited from global when the component does not set it explicitly.
 func resolveIngressSpec(global pingonev1alpha1.GlobalIngressSpec, component pingonev1alpha1.IngressSpec) pingonev1alpha1.IngressSpec {
+	if component.Enabled == nil {
+		enabled := global.Enabled
+		component.Enabled = &enabled
+	}
 	if component.ClassName == "" {
 		component.ClassName = global.ClassName
 	}

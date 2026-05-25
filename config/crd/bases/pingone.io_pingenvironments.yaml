@@ -60,7 +60,7 @@ spec:
               ingress:
                 description: |-
                   Ingress holds shared ingress settings inherited by all components.
-                  Per-component ingress fields override these when set.
+                  Set enabled: true to turn on ingress for all components at once.
                 properties:
                   annotations:
                     additionalProperties:
@@ -72,9 +72,62 @@ spec:
                     description: ClassName is the ingressClassName applied to all
                       component ingresses (e.g. nginx, traefik, alb).
                     type: string
+                  enabled:
+                    description: |-
+                      Enabled turns ingress on for all components by default.
+                      Each component can still override with its own enabled field.
+                    type: boolean
                   tlsSecretRef:
                     description: TLSSecretRef is the default TLS secret name. Per-component
                       tlsSecretRef overrides this.
+                    type: string
+                type: object
+              pingDataConsole:
+                description: |-
+                  PingDataConsole configures the PingDataConsole web UI.
+                  Automatically enabled when pingDirectory is set; set enabled: false to disable.
+                properties:
+                  enabled:
+                    description: |-
+                      Enabled controls whether PingDataConsole is deployed.
+                      Defaults to true when spec.pingDirectory is configured; set to false to disable.
+                    type: boolean
+                  image:
+                    description: Image is the container image repository. Omit to
+                      use the chart's default.
+                    type: string
+                  ingress:
+                    description: |-
+                      Ingress configures the Kubernetes Ingress for PingDataConsole.
+                      Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations are merged on top of the global annotations
+                          for this component.
+                        type: object
+                      className:
+                        description: ClassName overrides the global ingressClassName
+                          for this component.
+                        type: string
+                      enabled:
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
+                        type: boolean
+                      hostname:
+                        description: Hostname is the FQDN for this component. Defaults
+                          to <prefix>.<spec.domain> when spec.domain is set.
+                        type: string
+                      tlsSecretRef:
+                        description: TLSSecretRef overrides the global TLS secret
+                          name for this component.
+                        type: string
+                    type: object
+                  version:
+                    description: Version is the container image tag. Omit to use the
+                      chart's default tag.
                     type: string
                 type: object
               pingDirectory:
@@ -168,49 +221,14 @@ spec:
                           Default: dc=example,dc=com.'
                         type: string
                     type: object
-                  console:
+                  image:
                     description: |-
-                      Console enables the PingDataConsole web UI for this PingDirectory instance.
-                      Omit to skip the console deployment.
-                    properties:
-                      ingress:
-                        description: |-
-                          Ingress configures the Kubernetes Ingress for PingDataConsole.
-                          Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
-                        properties:
-                          annotations:
-                            additionalProperties:
-                              type: string
-                            description: Annotations are merged on top of the global
-                              annotations for this component.
-                            type: object
-                          className:
-                            description: ClassName overrides the global ingressClassName
-                              for this component.
-                            type: string
-                          enabled:
-                            description: Enabled controls whether an Ingress resource
-                              is created.
-                            type: boolean
-                          hostname:
-                            description: Hostname is the FQDN for this component.
-                              Defaults to <prefix>.<spec.domain> when spec.domain
-                              is set.
-                            type: string
-                          tlsSecretRef:
-                            description: TLSSecretRef overrides the global TLS secret
-                              name for this component.
-                            type: string
-                        required:
-                        - enabled
-                        type: object
-                      version:
-                        description: Version is the PingDataConsole image tag. Defaults
-                          to the PingDirectory version when not set.
-                        type: string
-                    type: object
+                      Image is the container image repository (e.g. registry.example.com/org/pingdirectory).
+                      Omit to use the chart's default image repository.
+                    type: string
                   replicas:
-                    description: Replicas is the desired number of PingDirectory pods.
+                    description: 'Replicas is the desired number of PingDirectory
+                      pods. Default: 1.'
                     format: int32
                     type: integer
                   storageClass:
@@ -226,11 +244,10 @@ spec:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   version:
-                    description: Version is the PingDirectory image tag to deploy.
+                    description: |-
+                      Version is the container image tag (e.g. 11.0.0.2-edge).
+                      Omit to use the chart's default tag.
                     type: string
-                required:
-                - replicas
-                - version
                 type: object
               pingFederate:
                 description: PingFederate holds the PingFederate deployment configuration.
@@ -251,8 +268,9 @@ spec:
                           for this component.
                         type: string
                       enabled:
-                        description: Enabled controls whether an Ingress resource
-                          is created.
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
                         type: boolean
                       hostname:
                         description: Hostname is the FQDN for this component. Defaults
@@ -262,8 +280,6 @@ spec:
                         description: TLSSecretRef overrides the global TLS secret
                           name for this component.
                         type: string
-                    required:
-                    - enabled
                     type: object
                   config:
                     description: Config holds PingFederate-specific environment variable
@@ -385,8 +401,9 @@ spec:
                           for this component.
                         type: string
                       enabled:
-                        description: Enabled controls whether an Ingress resource
-                          is created.
+                        description: |-
+                          Enabled controls whether an Ingress resource is created for this component.
+                          When nil the value is inherited from spec.ingress.enabled.
                         type: boolean
                       hostname:
                         description: Hostname is the FQDN for this component. Defaults
@@ -396,11 +413,15 @@ spec:
                         description: TLSSecretRef overrides the global TLS secret
                           name for this component.
                         type: string
-                    required:
-                    - enabled
                     type: object
+                  image:
+                    description: |-
+                      Image is the container image repository (e.g. registry.example.com/org/pingfederate).
+                      Omit to use the chart's default image repository.
+                    type: string
                   replicas:
-                    description: Replicas is the desired number of PingFederate pods.
+                    description: 'Replicas is the desired number of PingFederate engine
+                      pods. Default: 1.'
                     format: int32
                     type: integer
                   valuesOverride:
@@ -409,11 +430,10 @@ spec:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
                   version:
-                    description: Version is the PingFederate image tag to deploy.
+                    description: |-
+                      Version is the container image tag (e.g. 13.0.2-edge).
+                      Omit to use the chart's default tag.
                     type: string
-                required:
-                - replicas
-                - version
                 type: object
               targetNamespace:
                 description: TargetNamespace is the namespace to deploy into; defaults

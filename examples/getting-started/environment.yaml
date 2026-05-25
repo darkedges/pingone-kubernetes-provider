@@ -32,7 +32,7 @@ spec:
   domain: localhost
 
   # Shared ingress settings — inherited by all component ingresses below.
-  # Remove this block (and the engineIngress/adminIngress/console.ingress blocks)
+  # Remove this block (and the engineIngress/adminIngress/pingDataConsole.ingress blocks)
   # if you do not have an ingress controller installed.
   ingress:
     className: nginx
@@ -42,27 +42,34 @@ spec:
       cert-manager.io/cluster-issuer: "selfsigned-cluster-issuer"
 
   pingFederate:
-    version: "13.0.2-edge"
+    # image: registry.example.com/org/pingfederate  # optional: override image repository
+    # version: "13.0.2-edge"                        # optional: override image tag
     replicas: 1
     engineIngress:
       enabled: true
-      tlsSecretRef: pf-tls           # hostname: pf.localhost
+      # tlsSecretRef auto-generated: getting-started-pf-tls
+      # hostname auto-derived:       pf.localhost
     adminIngress:
       enabled: true
-      tlsSecretRef: pf-admin-tls     # hostname: pf-admin.localhost
+      # tlsSecretRef auto-generated: getting-started-pf-admin-tls
+      # hostname auto-derived:       pf-admin.localhost
     config:
       serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
       serverProfilePath: getting-started/pingfederate
 
   # Uncomment to deploy PingDirectory alongside PingFederate.
   # pingDirectory:
-  #   version: "11.0.0.2-edge"
+  #   # version: "11.0.0.2-edge"  # optional: override image tag
   #   replicas: 1
-  #   console:
-  #     ingress:
-  #       enabled: true
-  #       tlsSecretRef: pd-console-tls  # hostname: pd-console.localhost
   #   config:
   #     serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
   #     serverProfilePath: getting-started/pingdirectory
   #     userBaseDN: "dc=example,dc=com"
+
+  # PingDataConsole is enabled automatically when pingDirectory is set.
+  # Uncomment to configure ingress for it, or set enabled: false to disable.
+  # pingDataConsole:
+  #   ingress:
+  #     enabled: true
+  #     # tlsSecretRef auto-generated: getting-started-pd-console-tls
+  #     # hostname auto-derived:       pd-console.localhost

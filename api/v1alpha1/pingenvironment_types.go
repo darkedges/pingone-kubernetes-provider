@@ -8,6 +8,9 @@ import (
 // GlobalIngressSpec holds ingress settings shared across all components.
 // Per-component IngressSpec fields override these when set.
 type GlobalIngressSpec struct {
+	// Enabled turns ingress on for all components by default.
+	// Each component can still override with its own enabled field.
+	Enabled bool `json:"enabled,omitempty"`
 	// ClassName is the ingressClassName applied to all component ingresses (e.g. nginx, traefik, alb).
 	ClassName string `json:"className,omitempty"`
 	// TLSSecretRef is the default TLS secret name. Per-component tlsSecretRef overrides this.
@@ -19,8 +22,9 @@ type GlobalIngressSpec struct {
 // IngressSpec configures the Kubernetes Ingress for a product.
 // Fields left empty inherit from spec.ingress (GlobalIngressSpec).
 type IngressSpec struct {
-	// Enabled controls whether an Ingress resource is created.
-	Enabled bool `json:"enabled"`
+	// Enabled controls whether an Ingress resource is created for this component.
+	// When nil the value is inherited from spec.ingress.enabled.
+	Enabled *bool `json:"enabled,omitempty"`
 	// ClassName overrides the global ingressClassName for this component.
 	ClassName string `json:"className,omitempty"`
 	// Hostname is the FQDN for this component. Defaults to <prefix>.<spec.domain> when spec.domain is set.
@@ -129,10 +133,14 @@ type PingDirectoryConfig struct {
 
 // PingFederateSpec defines the desired state of a PingFederate deployment.
 type PingFederateSpec struct {
-	// Version is the PingFederate image tag to deploy.
-	Version string `json:"version"`
-	// Replicas is the desired number of PingFederate pods.
-	Replicas int32 `json:"replicas"`
+	// Image is the container image repository (e.g. registry.example.com/org/pingfederate).
+	// Omit to use the chart's default image repository.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag (e.g. 13.0.2-edge).
+	// Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingFederate engine pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
 	// EngineIngress configures the Kubernetes Ingress for the PingFederate runtime engine.
 	// Hostname defaults to pf.<spec.domain> when spec.domain is set.
 	EngineIngress IngressSpec `json:"engineIngress,omitempty"`
@@ -145,9 +153,15 @@ type PingFederateSpec struct {
 	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
 }
 
-// PingDataConsoleSpec enables the PingDataConsole web UI for managing PingDirectory.
+// PingDataConsoleSpec configures the PingDataConsole web UI deployment.
+// PingDataConsole is automatically enabled when spec.pingDirectory is set.
 type PingDataConsoleSpec struct {
-	// Version is the PingDataConsole image tag. Defaults to the PingDirectory version when not set.
+	// Enabled controls whether PingDataConsole is deployed.
+	// Defaults to true when spec.pingDirectory is configured; set to false to disable.
+	Enabled *bool `json:"enabled,omitempty"`
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag. Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
 	// Ingress configures the Kubernetes Ingress for PingDataConsole.
 	// Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
@@ -156,17 +170,18 @@ type PingDataConsoleSpec struct {
 
 // PingDirectorySpec defines the desired state of a PingDirectory deployment.
 type PingDirectorySpec struct {
-	// Version is the PingDirectory image tag to deploy.
-	Version string `json:"version"`
-	// Replicas is the desired number of PingDirectory pods.
-	Replicas int32 `json:"replicas"`
+	// Image is the container image repository (e.g. registry.example.com/org/pingdirectory).
+	// Omit to use the chart's default image repository.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag (e.g. 11.0.0.2-edge).
+	// Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingDirectory pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
 	// StorageClass is the storage class used for PersistentVolumeClaims.
 	StorageClass string `json:"storageClass,omitempty"`
 	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
 	StorageSize string `json:"storageSize,omitempty"`
-	// Console enables the PingDataConsole web UI for this PingDirectory instance.
-	// Omit to skip the console deployment.
-	Console *PingDataConsoleSpec `json:"console,omitempty"`
 	// Config holds PingDirectory-specific environment variable configuration.
 	Config PingDirectoryConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
@@ -183,12 +198,15 @@ type PingEnvironmentSpec struct {
 	// from this value when not explicitly set (e.g. pf.<domain>, pf-admin.<domain>).
 	Domain string `json:"domain,omitempty"`
 	// Ingress holds shared ingress settings inherited by all components.
-	// Per-component ingress fields override these when set.
+	// Set enabled: true to turn on ingress for all components at once.
 	Ingress GlobalIngressSpec `json:"ingress,omitempty"`
 	// PingFederate holds the PingFederate deployment configuration.
 	PingFederate PingFederateSpec `json:"pingFederate"`
 	// PingDirectory holds the optional PingDirectory deployment configuration.
 	PingDirectory *PingDirectorySpec `json:"pingDirectory,omitempty"`
+	// PingDataConsole configures the PingDataConsole web UI.
+	// Automatically enabled when pingDirectory is set; set enabled: false to disable.
+	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 }
