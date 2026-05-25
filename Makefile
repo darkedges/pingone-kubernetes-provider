@@ -2,6 +2,10 @@
 MODULE      ?= github.com/darkedges/pingone-operator
 IMG         ?= pingone-operator:latest
 PLATFORM    ?= linux/amd64
+HELM_CHART_DIR ?= charts/pingone-operator
+HELM_PACKAGE_DIR ?= dist
+HELM_OCI_REPO ?= oci://ghcr.io/darkedges/charts
+HELM_VERSION ?= 0.1.0
 
 # Directories — use absolute paths so tool invocations survive `cd` in recipes
 BIN_DIR     := $(abspath bin)
@@ -125,6 +129,30 @@ docker-buildx: ## Build and push a multi-arch image via buildx
 	  --platform linux/amd64,linux/arm64 \
 	  --push \
 	  -t $(IMG) .
+
+# --------------------------------------------------------------------------- #
+#  Helm / OCI                                                                  #
+# --------------------------------------------------------------------------- #
+
+.PHONY: helm-lint
+helm-lint: ## Lint the Helm chart
+	helm lint $(HELM_CHART_DIR)
+
+.PHONY: helm-package
+helm-package: ## Package the Helm chart into dist/
+	mkdir -p $(HELM_PACKAGE_DIR)
+	helm package $(HELM_CHART_DIR) --destination $(HELM_PACKAGE_DIR)
+
+.PHONY: helm-oci-push
+helm-oci-push: helm-package ## Push the Helm chart package to an OCI registry (set HELM_OCI_REPO)
+	helm push $(HELM_PACKAGE_DIR)/pingone-operator-$(HELM_VERSION).tgz $(HELM_OCI_REPO)
+
+.PHONY: helm-oci-install
+helm-oci-install: ## Install/upgrade from an OCI chart reference
+	helm upgrade --install pingone-operator $(HELM_OCI_REPO)/pingone-operator \
+	  --version $(HELM_VERSION) \
+	  --namespace pingone-system \
+	  --create-namespace
 
 # --------------------------------------------------------------------------- #
 #  Cluster — CRDs and RBAC                                                      #

@@ -59,6 +59,42 @@ make docker-build docker-push IMG=<registry>/pingone-operator:latest
 make deploy IMG=<registry>/pingone-operator:latest
 ```
 
+### 2a. Deploy with Helm (local chart)
+
+```bash
+helm upgrade --install pingone-operator ./charts/pingone-operator \
+  --namespace pingone-system \
+  --create-namespace \
+  --set image.repository=<registry>/pingone-operator \
+  --set image.tag=<tag>
+```
+
+### 2b. Package and deploy via OCI chart registry
+
+```bash
+# Authenticate to your OCI registry first (example: GHCR)
+echo <token> | helm registry login ghcr.io -u <user> --password-stdin
+
+# Package chart and push to OCI repo
+make helm-oci-push HELM_OCI_REPO=oci://ghcr.io/<org>/charts HELM_VERSION=0.1.0
+
+# Install/upgrade from OCI
+helm upgrade --install pingone-operator oci://ghcr.io/<org>/charts/pingone-operator \
+  --version 0.1.0 \
+  --namespace pingone-system \
+  --create-namespace \
+  --set image.repository=<registry>/pingone-operator \
+  --set image.tag=<tag>
+```
+
+If you want `make` wrappers for install from OCI:
+
+```bash
+make helm-oci-install \
+  HELM_OCI_REPO=oci://ghcr.io/<org>/charts \
+  HELM_VERSION=0.1.0
+```
+
 ### 3. Apply an environment
 
 Use the getting-started example (edit credentials first):

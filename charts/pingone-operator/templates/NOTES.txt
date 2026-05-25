@@ -1,0 +1,7 @@
+Install complete.
+
+Check operator pod status:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Check CRD availability:
+  kubectl get crd pingenvironments.pingone.io
