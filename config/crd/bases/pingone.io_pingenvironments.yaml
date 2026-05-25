@@ -210,6 +210,32 @@ spec:
                           Keys are the layer names (e.g. "BASE"); env vars use the uppercased key.
                         type: object
                     type: object
+                  container:
+                    description: Container holds container-level settings such as
+                      service wait conditions.
+                    properties:
+                      waitFor:
+                        additionalProperties:
+                          description: WaitForSpec defines a single service dependency
+                            that must be reachable before the container starts.
+                          properties:
+                            service:
+                              description: Service is the port/service type to probe
+                                (e.g. ldaps, https, ldap).
+                              type: string
+                            timeoutSeconds:
+                              description: 'TimeoutSeconds is how long to wait before
+                                giving up. Default: 300.'
+                              format: int32
+                              type: integer
+                          required:
+                          - service
+                          type: object
+                        description: |-
+                          WaitFor defines services this container waits for before starting.
+                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
+                        type: object
+                    type: object
                   engineIngress:
                     description: |-
                       EngineIngress configures the Kubernetes Ingress for the PingAccess engine.
@@ -364,6 +390,32 @@ spec:
                           Default: dc=example,dc=com.'
                         type: string
                     type: object
+                  container:
+                    description: Container holds container-level settings such as
+                      service wait conditions.
+                    properties:
+                      waitFor:
+                        additionalProperties:
+                          description: WaitForSpec defines a single service dependency
+                            that must be reachable before the container starts.
+                          properties:
+                            service:
+                              description: Service is the port/service type to probe
+                                (e.g. ldaps, https, ldap).
+                              type: string
+                            timeoutSeconds:
+                              description: 'TimeoutSeconds is how long to wait before
+                                giving up. Default: 300.'
+                              format: int32
+                              type: integer
+                          required:
+                          - service
+                          type: object
+                        description: |-
+                          WaitFor defines services this container waits for before starting.
+                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
+                        type: object
+                    type: object
                   image:
                     description: Image is the container image repository. Omit to
                       use the chart's default.
@@ -511,6 +563,32 @@ spec:
                         description: SharedSecretRef is the name of a Secret containing
                           DECISION_POINT_SHARED_SECRET for PAZ integration.
                         type: string
+                    type: object
+                  container:
+                    description: Container holds container-level settings such as
+                      service wait conditions.
+                    properties:
+                      waitFor:
+                        additionalProperties:
+                          description: WaitForSpec defines a single service dependency
+                            that must be reachable before the container starts.
+                          properties:
+                            service:
+                              description: Service is the port/service type to probe
+                                (e.g. ldaps, https, ldap).
+                              type: string
+                            timeoutSeconds:
+                              description: 'TimeoutSeconds is how long to wait before
+                                giving up. Default: 300.'
+                              format: int32
+                              type: integer
+                          required:
+                          - service
+                          type: object
+                        description: |-
+                          WaitFor defines services this container waits for before starting.
+                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
+                        type: object
                     type: object
                   image:
                     description: Image is the container image repository. Omit to
@@ -735,6 +813,32 @@ spec:
                           Default: dc=example,dc=com.'
                         type: string
                     type: object
+                  container:
+                    description: Container holds container-level settings such as
+                      service wait conditions.
+                    properties:
+                      waitFor:
+                        additionalProperties:
+                          description: WaitForSpec defines a single service dependency
+                            that must be reachable before the container starts.
+                          properties:
+                            service:
+                              description: Service is the port/service type to probe
+                                (e.g. ldaps, https, ldap).
+                              type: string
+                            timeoutSeconds:
+                              description: 'TimeoutSeconds is how long to wait before
+                                giving up. Default: 300.'
+                              format: int32
+                              type: integer
+                          required:
+                          - service
+                          type: object
+                        description: |-
+                          WaitFor defines services this container waits for before starting.
+                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
+                        type: object
+                    type: object
                   image:
                     description: |-
                       Image is the container image repository (e.g. registry.example.com/org/pingdirectory).
@@ -938,6 +1042,32 @@ spec:
                         description: |-
                           ServerProfileLayers defines additional named profile layers (layered profiles).
                           Keys are the layer names; env vars use the uppercased key.
+                        type: object
+                    type: object
+                  container:
+                    description: Container holds container-level settings such as
+                      service wait conditions.
+                    properties:
+                      waitFor:
+                        additionalProperties:
+                          description: WaitForSpec defines a single service dependency
+                            that must be reachable before the container starts.
+                          properties:
+                            service:
+                              description: Service is the port/service type to probe
+                                (e.g. ldaps, https, ldap).
+                              type: string
+                            timeoutSeconds:
+                              description: 'TimeoutSeconds is how long to wait before
+                                giving up. Default: 300.'
+                              format: int32
+                              type: integer
+                          required:
+                          - service
+                          type: object
+                        description: |-
+                          WaitFor defines services this container waits for before starting.
+                          Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
                         type: object
                     type: object
                   engineIngress:

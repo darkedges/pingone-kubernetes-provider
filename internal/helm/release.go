@@ -310,16 +310,9 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 				"replicas": 1,
 			},
 		},
-		"image": pfImageValues,
-		"container": map[string]any{
-			"resources": map[string]any{
-				"requests": map[string]any{
-					"cpu":    pfCPU,
-					"memory": pfMem,
-				},
-			},
-		},
-		"envs": pfEnvs,
+		"image":     pfImageValues,
+		"container": buildContainerValues(pfCPU, pfMem, spec.PingFederate.Container),
+		"envs":      pfEnvs,
 		"services": map[string]any{
 			"https": adminSvc,
 		},
@@ -338,15 +331,8 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 				"replicas": spec.PingFederate.Replicas,
 			},
 		},
-		"image": pfImageValues,
-		"container": map[string]any{
-			"resources": map[string]any{
-				"requests": map[string]any{
-					"cpu":    pfCPU,
-					"memory": pfMem,
-				},
-			},
-		},
+		"image":     pfImageValues,
+		"container": buildContainerValues(pfCPU, pfMem, spec.PingFederate.Container),
 		"envs": pfEnvs,
 		"services": map[string]any{
 			"https": map[string]any{
@@ -446,15 +432,8 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					},
 				},
 			},
-			"image": buildImageValues(pdSpec.Image, pdSpec.Version),
-			"container": map[string]any{
-				"resources": map[string]any{
-					"requests": map[string]any{
-						"cpu":    pdCPU,
-						"memory": pdMem,
-					},
-				},
-			},
+			"image":     buildImageValues(pdSpec.Image, pdSpec.Version),
+			"container": buildContainerValues(pdCPU, pdMem, pdSpec.Container),
 			"envs": pdEnvs,
 			"services": map[string]any{
 				"ldap": map[string]any{
@@ -590,13 +569,9 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					"replicas": 1,
 				},
 			},
-			"image": paImageValues,
-			"container": map[string]any{
-				"resources": map[string]any{
-					"requests": map[string]any{"cpu": paCPU, "memory": paMem},
-				},
-			},
-			"envs": paEnvs,
+			"image":     paImageValues,
+			"container": buildContainerValues(paCPU, paMem, spec.PingAccess.Container),
+			"envs":      paEnvs,
 			"services": map[string]any{
 				"https": map[string]any{
 					"containerPort": paCfg.AdminPort,
@@ -619,12 +594,8 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					"replicas": spec.PingAccess.Replicas,
 				},
 			},
-			"image": paImageValues,
-			"container": map[string]any{
-				"resources": map[string]any{
-					"requests": map[string]any{"cpu": paCPU, "memory": paMem},
-				},
-			},
+			"image":     paImageValues,
+			"container": buildContainerValues(paCPU, paMem, spec.PingAccess.Container),
 			"envs": paEnvs,
 			"services": map[string]any{
 				"https": map[string]any{
@@ -715,13 +686,9 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					},
 				},
 			},
-			"image": buildImageValues(pazSpec.Image, pazSpec.Version),
-			"container": map[string]any{
-				"resources": map[string]any{
-					"requests": map[string]any{"cpu": pazCPU, "memory": pazMem},
-				},
-			},
-			"envs": pazEnvs,
+			"image":     buildImageValues(pazSpec.Image, pazSpec.Version),
+			"container": buildContainerValues(pazCPU, pazMem, pazSpec.Container),
+			"envs":      pazEnvs,
 			"services": map[string]any{
 				"ldap": map[string]any{
 					"containerPort":  pazCfg.LDAPPort,
@@ -803,9 +770,12 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					"replicas": 1,
 				},
 			},
-			"image": buildImageValues(spec.PingAuthorizePAP.Image, spec.PingAuthorizePAP.Version),
+			"image":   buildImageValues(spec.PingAuthorizePAP.Image, spec.PingAuthorizePAP.Version),
 			"envs":    papEnvs,
 			"ingress": papIngressValues,
+		}
+		if c := buildContainerValues("", "", spec.PingAuthorizePAP.Container); len(c) > 0 {
+			papValues["container"] = c
 		}
 		if len(papEnvFrom) > 0 {
 			papValues["envFrom"] = papEnvFrom
@@ -864,6 +834,34 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	}
 
 	return values, nil
+}
+
+// buildContainerValues constructs the container map, merging resource requests with
+// any waitFor dependencies. Returns nil when there is nothing to set.
+func buildContainerValues(cpu, memory string, container pingonev1alpha1.ContainerSpec) map[string]any {
+	m := map[string]any{}
+	if cpu != "" || memory != "" {
+		req := map[string]any{}
+		if cpu != "" {
+			req["cpu"] = cpu
+		}
+		if memory != "" {
+			req["memory"] = memory
+		}
+		m["resources"] = map[string]any{"requests": req}
+	}
+	if len(container.WaitFor) > 0 {
+		wf := make(map[string]any, len(container.WaitFor))
+		for svc, spec := range container.WaitFor {
+			entry := map[string]any{"service": spec.Service}
+			if spec.TimeoutSeconds > 0 {
+				entry["timeoutSeconds"] = spec.TimeoutSeconds
+			}
+			wf[svc] = entry
+		}
+		m["waitFor"] = wf
+	}
+	return m
 }
 
 // emitServerProfileEnvs writes SERVER_PROFILE_* env vars from a layered profile spec.

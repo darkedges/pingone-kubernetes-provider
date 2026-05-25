@@ -35,6 +35,21 @@ type IngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// WaitForSpec defines a single service dependency that must be reachable before the container starts.
+type WaitForSpec struct {
+	// Service is the port/service type to probe (e.g. ldaps, https, ldap).
+	Service string `json:"service"`
+	// TimeoutSeconds is how long to wait before giving up. Default: 300.
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
+}
+
+// ContainerSpec holds container-level settings that apply on top of the chart defaults.
+type ContainerSpec struct {
+	// WaitFor defines services this container waits for before starting.
+	// Keys are sub-chart names within the same release (e.g. pingdirectory, pingfederate-engine).
+	WaitFor map[string]WaitForSpec `json:"waitFor,omitempty"`
+}
+
 // ServerProfileSpec defines one layer of a Ping Identity server profile.
 // See: https://developer.pingidentity.com/devops/how-to/profilesLayered.html
 //
@@ -95,6 +110,8 @@ type PingAccessSpec struct {
 	// EngineIngress configures the Kubernetes Ingress for the PingAccess engine.
 	// Hostname defaults to pa.<spec.domain> when spec.domain is set.
 	EngineIngress IngressSpec `json:"engineIngress,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAccess-specific environment variable configuration.
 	Config PingAccessConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
@@ -166,6 +183,8 @@ type PingAuthorizePAPSpec struct {
 	// Ingress configures the Kubernetes Ingress for the PAP web UI.
 	// Hostname defaults to paz-pap.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAuthorizePAP-specific environment variable configuration.
 	Config PingAuthorizePAPConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
@@ -187,6 +206,8 @@ type PingAuthorizeSpec struct {
 	// Ingress configures the Kubernetes Ingress for the PingAuthorize management interface.
 	// Hostname defaults to paz.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAuthorize-specific environment variable configuration.
 	Config PingAuthorizeConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
@@ -303,6 +324,8 @@ type PingFederateSpec struct {
 	// AdminIngress configures the Kubernetes Ingress for the PingFederate admin console.
 	// Hostname defaults to pf-admin.<spec.domain> when spec.domain is set.
 	AdminIngress IngressSpec `json:"adminIngress,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingFederate-specific environment variable configuration.
 	Config PingFederateConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
@@ -338,6 +361,8 @@ type PingDirectorySpec struct {
 	StorageClass string `json:"storageClass,omitempty"`
 	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
 	StorageSize string `json:"storageSize,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingDirectory-specific environment variable configuration.
 	Config PingDirectoryConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
