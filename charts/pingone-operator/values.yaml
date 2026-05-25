@@ -5,6 +5,10 @@ image:
   pullPolicy: IfNotPresent
   tag: latest
 
+manager:
+  command:
+    - /manager
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -22,8 +26,12 @@ podLabels: {}
 
 podSecurityContext:
   runAsNonRoot: true
+  fsGroup: 65532
 
 securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
   allowPrivilegeEscalation: false
   capabilities:
     drop:

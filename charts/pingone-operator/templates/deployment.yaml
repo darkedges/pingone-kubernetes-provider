@@ -32,6 +32,8 @@ spec:
         - name: manager
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.manager.command | nindent 12 }}
           args:
             - --leader-elect={{ .Values.leaderElection.enabled }}
             - --metrics-bind-address={{ .Values.metrics.bindAddress }}

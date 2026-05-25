@@ -15,10 +15,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags "-s -w" -o manager ./main.go
 
 # Runtime stage
-FROM gcr.io/distroless/static:nonroot
+# Alpine runtime keeps the image small while providing `update-ca-certificates`
+# so custom trust bundles can be refreshed when needed.
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/manager /manager
 
 USER 65532:65532
 
