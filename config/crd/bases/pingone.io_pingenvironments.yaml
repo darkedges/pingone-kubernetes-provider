@@ -660,12 +660,12 @@ spec:
               pingDataConsole:
                 description: |-
                   PingDataConsole configures the PingDataConsole web UI.
-                  Automatically enabled when pingDirectory is set; set enabled: false to disable.
+                  Only deployed when this section is explicitly present.
                 properties:
                   enabled:
                     description: |-
                       Enabled controls whether PingDataConsole is deployed.
-                      Defaults to true when spec.pingDirectory is configured; set to false to disable.
+                      Defaults to true when this section is present; set to false to disable.
                     type: boolean
                   image:
                     description: Image is the container image repository. Omit to
@@ -900,7 +900,8 @@ spec:
                     type: string
                 type: object
               pingFederate:
-                description: PingFederate holds the PingFederate deployment configuration.
+                description: PingFederate holds the optional PingFederate deployment
+                  configuration.
                 properties:
                   adminIngress:
                     description: |-
@@ -1172,7 +1173,6 @@ spec:
                 description: 'Tier is one of: development, staging, production.'
                 type: string
             required:
-            - pingFederate
             - tenantId
             - tier
             type: object

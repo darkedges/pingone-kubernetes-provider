@@ -54,16 +54,18 @@ spec:
       # tlsSecretRef auto-generated: getting-started-pf-admin-tls
       # hostname auto-derived:       pf-admin.localhost
     config:
-      serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
-      serverProfilePath: getting-started/pingfederate
+      serverProfile:
+        url: https://github.com/pingidentity/pingidentity-server-profiles.git
+        path: getting-started/pingfederate
 
   # Uncomment to deploy PingDirectory alongside PingFederate.
   # pingDirectory:
   #   # version: "11.0.0.2-edge"  # optional: override image tag
   #   replicas: 1
   #   config:
-  #     serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
-  #     serverProfilePath: getting-started/pingdirectory
+  #     serverProfile:
+  #       url: https://github.com/pingidentity/pingidentity-server-profiles.git
+  #       path: getting-started/pingdirectory
   #     userBaseDN: "dc=example,dc=com"
 
   # PingDataConsole is enabled automatically when pingDirectory is set.

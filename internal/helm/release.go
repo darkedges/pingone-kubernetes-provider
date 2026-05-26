@@ -168,15 +168,6 @@ func TierResources(tier, product string) (cpu, memory string) {
 func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, error) {
 	applyDefaults(&spec)
 
-	pfCPU, pfMem := TierResources(spec.Tier, "pf")
-	pfCfg := spec.PingFederate.Config
-	pfIng := resolveIngressSpec(spec.Ingress, spec.PingFederate.EngineIngress)
-	pfAdminIng := resolveIngressSpec(spec.Ingress, spec.PingFederate.AdminIngress)
-
-	// Resolve hostnames from domain when not explicitly set
-	engineHostname := resolveHostname(pfIng.Hostname, "pf", spec.Domain)
-	adminHostname := resolveHostname(pfAdminIng.Hostname, "pf-admin", spec.Domain)
-
 	// Build global section
 	globalValues := map[string]any{
 		"envs": map[string]any{
@@ -191,6 +182,21 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 			"enabled": false,
 		},
 	}
+
+	// Build PingFederate sections
+	var pfAdminValues, pfEngineValues map[string]any
+	if spec.PingFederate == nil {
+		pfAdminValues = map[string]any{"enabled": false}
+		pfEngineValues = map[string]any{"enabled": false}
+	} else {
+	pfCPU, pfMem := TierResources(spec.Tier, "pf")
+	pfCfg := spec.PingFederate.Config
+	pfIng := resolveIngressSpec(spec.Ingress, spec.PingFederate.EngineIngress)
+	pfAdminIng := resolveIngressSpec(spec.Ingress, spec.PingFederate.AdminIngress)
+
+	// Resolve hostnames from domain when not explicitly set
+	engineHostname := resolveHostname(pfIng.Hostname, "pf", spec.Domain)
+	adminHostname := resolveHostname(pfAdminIng.Hostname, "pf-admin", spec.Domain)
 
 	// Build PingFederate envs
 	pfEnvs := map[string]any{}
@@ -302,7 +308,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	pfImageValues := buildImageValues(spec.PingFederate.Image, spec.PingFederate.Version)
 
 	// Assemble pingfederate-admin section (admin console, 1 replica)
-	pfAdminValues := map[string]any{
+	pfAdminValues = map[string]any{
 		"enabled": true,
 		"workload": map[string]any{
 			"type": "Deployment",
@@ -323,7 +329,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	}
 
 	// Assemble pingfederate-engine section (runtime engine, user-specified replicas)
-	pfEngineValues := map[string]any{
+	pfEngineValues = map[string]any{
 		"enabled": true,
 		"workload": map[string]any{
 			"type": "Deployment",
@@ -347,6 +353,7 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	if len(pfEnvFrom) > 0 {
 		pfEngineValues["envFrom"] = pfEnvFrom
 	}
+	} // end PingFederate
 
 	// Assemble pingdirectory section
 	var pdValues map[string]any
@@ -460,12 +467,11 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 	}
 
 	// Assemble pingdataconsole section.
-	// Enabled by default when pingDirectory is set; disabled via spec.pingDataConsole.enabled=false.
+	// Only deployed when spec.pingDataConsole is explicitly set and not disabled.
 	var pdcValues map[string]any
 	pdcShouldEnable := spec.PingDirectory != nil &&
-		(spec.PingDataConsole == nil ||
-			spec.PingDataConsole.Enabled == nil ||
-			*spec.PingDataConsole.Enabled)
+		spec.PingDataConsole != nil &&
+		(spec.PingDataConsole.Enabled == nil || *spec.PingDataConsole.Enabled)
 	if pdcShouldEnable {
 		var pdc pingonev1alpha1.PingDataConsoleSpec
 		if spec.PingDataConsole != nil {
@@ -794,11 +800,14 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		"pingauthorizepap":    papValues,
 	}
 
-	// Merge PingFederate ValuesOverride
 	var err error
-	values, err = MergeValues(values, spec.PingFederate.ValuesOverride)
-	if err != nil {
-		return nil, fmt.Errorf("merge PingFederate valuesOverride: %w", err)
+
+	// Merge PingFederate ValuesOverride
+	if spec.PingFederate != nil {
+		values, err = MergeValues(values, spec.PingFederate.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingFederate valuesOverride: %w", err)
+		}
 	}
 
 	// Merge PingDirectory ValuesOverride

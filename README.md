@@ -1,6 +1,6 @@
 # pingone-kubernetes-provider
 
-A Kubernetes operator that manages Ping Identity product deployments via a single `PingEnvironment` custom resource. The operator reconciles each CR into a Helm release of the [`ping-devops`](https://helm.pingidentity.com) chart (version `0.12.2`), handling PingFederate and optionally PingDirectory and PingDataConsole.
+A Kubernetes operator that manages Ping Identity product deployments via a single `PingEnvironment` custom resource. The operator reconciles each CR into a Helm release of the [`ping-devops`](https://helm.pingidentity.com) chart (version `0.12.2`).
 
 ---
 
@@ -8,10 +8,12 @@ A Kubernetes operator that manages Ping Identity product deployments via a singl
 
 - Apply a `PingEnvironment` manifest — the operator does the rest.
 - PingFederate is always deployed as separate admin and engine workloads.
-- PingDirectory and PingDataConsole are optional; omit their sections to skip them.
+- PingDirectory, PingDataConsole, PingAccess, PingAuthorize, and PingAuthorizePAP are optional; omit their sections to skip them.
 - Resource sizing (CPU/memory) is driven by a single `tier` field: `development`, `staging`, or `production`.
-- A shared `spec.ingress` block provides ingress class and annotations to all components; per-component blocks only need `enabled` and a TLS secret reference.
-- Hostnames are derived from `spec.domain` automatically (e.g. `pf.localhost`, `pf-admin.localhost`) or overridden per component.
+- A shared `spec.ingress` block provides ingress class, annotations, and a global `enabled` flag to all components; per-component blocks only need `enabled` and a TLS secret reference.
+- Hostnames are derived from `spec.domain` automatically or overridden per component.
+- Server profiles use a structured `serverProfile` block and optional `serverProfileLayers` list for layered profiles.
+- Container startup ordering is controlled via `container.waitFor` entries.
 
 ---
 
@@ -133,8 +135,9 @@ spec:
   tier: development             # development | staging | production
   domain: dev.myorg.example.com # base domain; component hostnames derived automatically
 
-  # Shared ingress settings — inherited by all components
+  # Shared ingress — inherited by all components unless overridden per component
   ingress:
+    enabled: true               # globally enable ingress for all components
     className: nginx
     annotations:
       nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
@@ -143,7 +146,6 @@ spec:
 
   pingFederate:
     version: "13.0.2-edge"
-    replicas: 1
     engineIngress:
       enabled: true
       tlsSecretRef: pf-tls      # hostname: pf.dev.myorg.example.com
@@ -151,22 +153,67 @@ spec:
       enabled: true
       tlsSecretRef: pf-admin-tls  # hostname: pf-admin.dev.myorg.example.com
     config:
-      serverProfileURL: https://github.com/myorg/ping-profiles.git
-      serverProfileBranch: main
-      serverProfilePath: pingfederate
+      serverProfile:
+        url: https://github.com/myorg/ping-profiles.git
+        branch: main
+        path: pingfederate
 
   pingDirectory:                # optional — omit to skip PingDirectory
-    version: "11.0.0.2-edge"
-    replicas: 1
-    console:                    # optional — omit to skip PingDataConsole
-      ingress:
-        enabled: true
-        tlsSecretRef: pd-console-tls  # hostname: pd-console.dev.myorg.example.com
     config:
-      serverProfileURL: https://github.com/myorg/ping-profiles.git
-      serverProfileBranch: main
-      serverProfilePath: pingdirectory
+      serverProfile:
+        url: https://github.com/myorg/ping-profiles.git
+        branch: main
+        path: pingdirectory
       userBaseDN: "dc=myorg,dc=com"
+
+  pingDataConsole:              # optional — only deployed when this section is present
+    ingress:
+      enabled: true
+      tlsSecretRef: pd-console-tls  # hostname: pd-console.dev.myorg.example.com
+
+  pingAccess:                   # optional — omit to skip PingAccess
+    adminIngress:
+      enabled: true
+      tlsSecretRef: pa-admin-tls  # hostname: pa-admin.dev.myorg.example.com
+    engineIngress:
+      enabled: true
+      tlsSecretRef: pa-tls        # hostname: pa.dev.myorg.example.com
+    container:
+      waitFor:
+        - application: pingFederate
+          service: https
+          timeoutSeconds: 300
+    config:
+      serverProfile:
+        url: https://github.com/myorg/ping-profiles.git
+        path: pingaccess
+
+  pingAuthorize:                # optional — omit to skip PingAuthorize
+    ingress:
+      enabled: true
+      tlsSecretRef: paz-tls     # hostname: paz.dev.myorg.example.com
+    container:
+      waitFor:
+        - application: pingDirectory
+          service: ldaps
+          timeoutSeconds: 300
+    config:
+      serverProfile:
+        url: https://github.com/myorg/ping-profiles.git
+        path: paz-pap-integration/pingauthorize
+      serverProfileLayers:
+        - name: baseline
+          url: https://github.com/myorg/ping-profiles.git
+          path: baseline/pingauthorize
+
+  pingAuthorizePAP:             # optional — omit to skip PingAuthorizePAP
+    ingress:
+      enabled: true
+      tlsSecretRef: paz-pap-tls  # hostname: paz-pap.dev.myorg.example.com
+    config:
+      serverProfile:
+        url: https://github.com/myorg/ping-profiles.git
+        path: paz-pap-integration/pingauthorizepap
 ```
 
 See [CONFIGURATION.md](CONFIGURATION.md) for the full field reference.
@@ -177,10 +224,11 @@ See [CONFIGURATION.md](CONFIGURATION.md) for the full field reference.
 
 See **[CONFIGURATION.md](CONFIGURATION.md)** for complete documentation including:
 
-- All `spec.pingFederate.config` fields and their container env var mappings
-- All `spec.pingDirectory.config` fields and their container env var mappings
+- All config fields and their container env var mappings for each product
 - Resource sizing per tier
 - Ingress configuration (global and per-component)
+- Server profile and layered profile configuration
+- Container `waitFor` dependency ordering
 - `valuesOverride` escape hatch for raw Helm values
 - Status fields
 
@@ -195,6 +243,10 @@ When `spec.domain` is set, hostnames are derived automatically:
 | PingFederate engine | `pf.<domain>` |
 | PingFederate admin | `pf-admin.<domain>` |
 | PingDataConsole | `pd-console.<domain>` |
+| PingAccess admin | `pa-admin.<domain>` |
+| PingAccess engine | `pa.<domain>` |
+| PingAuthorize | `paz.<domain>` |
+| PingAuthorizePAP | `paz-pap.<domain>` |
 
 Override any hostname by setting `hostname` inside the component's ingress block.
 
@@ -202,11 +254,67 @@ Override any hostname by setting `hostname` inside the component's ingress block
 
 ## Tier resource sizing
 
-| Tier | PingFederate CPU | PingFederate Memory | PingDirectory CPU | PingDirectory Memory |
+| Tier | PingFederate CPU/Mem | PingDirectory CPU/Mem | PingAccess CPU/Mem | PingAuthorize CPU/Mem |
 |---|---|---|---|---|
-| `development` | 500m | 512Mi | 500m | 1Gi |
-| `staging` | 1 | 1Gi | 1 | 2Gi |
-| `production` | 2 | 2Gi | 2 | 4Gi |
+| `development` | 500m / 512Mi | 500m / 1Gi | 500m / 512Mi | 500m / 1Gi |
+| `staging` | 1 / 1Gi | 1 / 2Gi | 1 / 1Gi | 1 / 2Gi |
+| `production` | 2 / 2Gi | 2 / 4Gi | 2 / 2Gi | 2 / 4Gi |
+
+PingDataConsole and PingAuthorizePAP are lightweight UI/API components — no tier-based resource sizing is applied.
+
+---
+
+## Server profiles
+
+All products support structured server profiles and optional layered profiles:
+
+```yaml
+config:
+  serverProfile:
+    url: https://github.com/myorg/ping-profiles.git
+    branch: main      # optional
+    path: pingfederate
+    parent: baseline  # optional: name of a layer this profile chains to
+
+  serverProfileLayers:
+    - name: baseline
+      url: https://github.com/myorg/ping-profiles.git
+      path: baseline/pingfederate
+      branch: main    # optional
+```
+
+The `serverProfile` block maps to `SERVER_PROFILE_URL`, `SERVER_PROFILE_BRANCH`, `SERVER_PROFILE_PATH`, and `SERVER_PROFILE_PARENT` container env vars.
+
+Each entry in `serverProfileLayers` maps to `SERVER_PROFILE_<NAME>_URL`, `SERVER_PROFILE_<NAME>_BRANCH`, `SERVER_PROFILE_<NAME>_PATH`, and `SERVER_PROFILE_<NAME>_PARENT` env vars, where `<NAME>` is the `name` field uppercased.
+
+See [Ping Identity layered profiles documentation](https://developer.pingidentity.com/devops/how-to/profilesLayered.html) for details on chaining profiles.
+
+---
+
+## Container wait-for
+
+Products can wait for other containers to become ready before starting:
+
+```yaml
+container:
+  waitFor:
+    - application: pingDirectory
+      service: ldaps
+      timeoutSeconds: 300
+```
+
+The `application` field accepts logical names (case-insensitive):
+
+| Logical name | Resolves to |
+|---|---|
+| `pingDirectory` | `pingdirectory` |
+| `pingFederate` / `pingFederateEngine` | `pingfederate-engine` |
+| `pingFederateAdmin` | `pingfederate-admin` |
+| `pingAccess` / `pingAccessEngine` | `pingaccess-engine` |
+| `pingAccessAdmin` | `pingaccess-admin` |
+| `pingAuthorize` | `pingauthorize` |
+| `pingAuthorizePAP` | `pingauthorizepap` |
+| `pingDataConsole` | `pingdataconsole` |
 
 ---
 

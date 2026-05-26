@@ -7,41 +7,41 @@ import (
 // applyDefaults fills zero-value fields in spec with the official Ping Identity defaults.
 // It is called before BuildPingValues so that all env var mappings have sensible values.
 func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
-	if spec.PingFederate.Replicas == 0 {
-		spec.PingFederate.Replicas = 1
-	}
-
-	pf := &spec.PingFederate.Config
-
-	if pf.EnginePort == 0 {
-		pf.EnginePort = 9031
-	}
-	if pf.AdminPort == 0 {
-		pf.AdminPort = 9999
-	}
-	if pf.OperationalMode == "" {
-		pf.OperationalMode = "STANDALONE"
-	}
-	if pf.ConsoleAuthentication == "" {
-		pf.ConsoleAuthentication = "native"
-	}
-	if pf.AdminAPIAuthentication == "" {
-		pf.AdminAPIAuthentication = "native"
-	}
-	if pf.LDAPType == "" {
-		pf.LDAPType = "PingDirectory"
-	}
-	if pf.ProvisionerMode == "" {
-		pf.ProvisionerMode = "OFF"
-	}
-	if pf.ProvisionerNodeID == 0 {
-		pf.ProvisionerNodeID = 1
-	}
-	if pf.JavaRAMPercentage == "" {
-		pf.JavaRAMPercentage = "75.0"
-	}
-	if pf.HSMMode == "" {
-		pf.HSMMode = "OFF"
+	if spec.PingFederate != nil {
+		if spec.PingFederate.Replicas == 0 {
+			spec.PingFederate.Replicas = 1
+		}
+		pf := &spec.PingFederate.Config
+		if pf.EnginePort == 0 {
+			pf.EnginePort = 9031
+		}
+		if pf.AdminPort == 0 {
+			pf.AdminPort = 9999
+		}
+		if pf.OperationalMode == "" {
+			pf.OperationalMode = "STANDALONE"
+		}
+		if pf.ConsoleAuthentication == "" {
+			pf.ConsoleAuthentication = "native"
+		}
+		if pf.AdminAPIAuthentication == "" {
+			pf.AdminAPIAuthentication = "native"
+		}
+		if pf.LDAPType == "" {
+			pf.LDAPType = "PingDirectory"
+		}
+		if pf.ProvisionerMode == "" {
+			pf.ProvisionerMode = "OFF"
+		}
+		if pf.ProvisionerNodeID == 0 {
+			pf.ProvisionerNodeID = 1
+		}
+		if pf.JavaRAMPercentage == "" {
+			pf.JavaRAMPercentage = "75.0"
+		}
+		if pf.HSMMode == "" {
+			pf.HSMMode = "OFF"
+		}
 	}
 
 	if spec.PingAccess != nil {

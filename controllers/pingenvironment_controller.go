@@ -132,8 +132,12 @@ func (r *PingEnvironmentReconciler) deployPingDevops(ctx context.Context, cfg *a
 func (r *PingEnvironmentReconciler) setReady(ctx context.Context, env *pingonev1alpha1.PingEnvironment, releaseName string) (ctrl.Result, error) {
 	patch := client.MergeFrom(env.DeepCopy())
 	env.Status.Phase = "Ready"
-	env.Status.PingFederateRelease = releaseName
-	env.Status.PingDirectoryRelease = releaseName
+	if env.Spec.PingFederate != nil {
+		env.Status.PingFederateRelease = releaseName
+	}
+	if env.Spec.PingDirectory != nil {
+		env.Status.PingDirectoryRelease = releaseName
+	}
 	if env.Spec.PingAccess != nil {
 		env.Status.PingAccessRelease = releaseName
 	}

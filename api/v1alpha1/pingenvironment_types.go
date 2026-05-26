@@ -352,10 +352,10 @@ type PingFederateSpec struct {
 }
 
 // PingDataConsoleSpec configures the PingDataConsole web UI deployment.
-// PingDataConsole is automatically enabled when spec.pingDirectory is set.
+// PingDataConsole is only deployed when this section is explicitly present in the spec.
 type PingDataConsoleSpec struct {
 	// Enabled controls whether PingDataConsole is deployed.
-	// Defaults to true when spec.pingDirectory is configured; set to false to disable.
+	// Defaults to true when this section is present; set to false to disable.
 	Enabled *bool `json:"enabled,omitempty"`
 	// Image is the container image repository. Omit to use the chart's default.
 	Image string `json:"image,omitempty"`
@@ -400,12 +400,12 @@ type PingEnvironmentSpec struct {
 	// Ingress holds shared ingress settings inherited by all components.
 	// Set enabled: true to turn on ingress for all components at once.
 	Ingress GlobalIngressSpec `json:"ingress,omitempty"`
-	// PingFederate holds the PingFederate deployment configuration.
-	PingFederate PingFederateSpec `json:"pingFederate"`
+	// PingFederate holds the optional PingFederate deployment configuration.
+	PingFederate *PingFederateSpec `json:"pingFederate,omitempty"`
 	// PingDirectory holds the optional PingDirectory deployment configuration.
 	PingDirectory *PingDirectorySpec `json:"pingDirectory,omitempty"`
 	// PingDataConsole configures the PingDataConsole web UI.
-	// Automatically enabled when pingDirectory is set; set enabled: false to disable.
+	// Only deployed when this section is explicitly present.
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
 	// PingAccess holds the optional PingAccess deployment configuration.
 	PingAccess *PingAccessSpec `json:"pingAccess,omitempty"`
