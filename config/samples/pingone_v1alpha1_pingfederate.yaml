@@ -1,0 +1,21 @@
+apiVersion: pingone.io/v1alpha1
+kind: PingFederate
+metadata:
+  name: dev-pf
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  version: "13.0.2-edge"
+  replicas: 1
+  engineIngress:
+    enabled: true
+    tlsSecretRef: pf-tls
+    # hostname auto-derived: pf.dev.example.com
+  adminIngress:
+    enabled: true
+    tlsSecretRef: pf-admin-tls
+    # hostname auto-derived: pf-admin.dev.example.com
+  config:
+    serverProfile:
+      url: https://github.com/your-org/ping-profiles.git
+      path: pingfederate

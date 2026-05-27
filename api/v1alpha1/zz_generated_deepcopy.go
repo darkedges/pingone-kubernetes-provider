@@ -188,34 +188,9 @@ func (in *PingEnvironmentList) DeepCopyObject() runtime.Object {
 func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 	*out = *in
 	in.Ingress.DeepCopyInto(&out.Ingress)
-	if in.PingFederate != nil {
-		in, out := &in.PingFederate, &out.PingFederate
-		*out = new(PingFederateSpec)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.PingDirectory != nil {
-		in, out := &in.PingDirectory, &out.PingDirectory
-		*out = new(PingDirectorySpec)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.PingDataConsole != nil {
 		in, out := &in.PingDataConsole, &out.PingDataConsole
 		*out = new(PingDataConsoleSpec)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.PingAccess != nil {
-		in, out := &in.PingAccess, &out.PingAccess
-		*out = new(PingAccessSpec)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.PingAuthorize != nil {
-		in, out := &in.PingAuthorize, &out.PingAuthorize
-		*out = new(PingAuthorizeSpec)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.PingAuthorizePAP != nil {
-		in, out := &in.PingAuthorizePAP, &out.PingAuthorizePAP
-		*out = new(PingAuthorizePAPSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -288,4 +263,419 @@ func (in *PingDirectorySpec) DeepCopy() *PingDirectorySpec {
 	out := new(PingDirectorySpec)
 	in.DeepCopyInto(out)
 	return out
+}
+
+// --- PingFederate Kind ---
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingFederateStatus) DeepCopyInto(out *PingFederateStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingFederateStatus.
+func (in *PingFederateStatus) DeepCopy() *PingFederateStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(PingFederateStatus)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingFederate) DeepCopyInto(out *PingFederate) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopy creates a deep copy of PingFederate.
+func (in *PingFederate) DeepCopy() *PingFederate {
+	if in == nil {
+		return nil
+	}
+	out := new(PingFederate)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingFederate) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingFederateList) DeepCopyInto(out *PingFederateList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]PingFederate, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingFederateList.
+func (in *PingFederateList) DeepCopy() *PingFederateList {
+	if in == nil {
+		return nil
+	}
+	out := new(PingFederateList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingFederateList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// --- PingDirectory Kind ---
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectoryStatus) DeepCopyInto(out *PingDirectoryStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingDirectoryStatus.
+func (in *PingDirectoryStatus) DeepCopy() *PingDirectoryStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectoryStatus)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectory) DeepCopyInto(out *PingDirectory) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopy creates a deep copy of PingDirectory.
+func (in *PingDirectory) DeepCopy() *PingDirectory {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectory)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingDirectory) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectoryList) DeepCopyInto(out *PingDirectoryList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]PingDirectory, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingDirectoryList.
+func (in *PingDirectoryList) DeepCopy() *PingDirectoryList {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectoryList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingDirectoryList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// --- PingAccess Kind ---
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAccessStatus) DeepCopyInto(out *PingAccessStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingAccessStatus.
+func (in *PingAccessStatus) DeepCopy() *PingAccessStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAccessStatus)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAccess) DeepCopyInto(out *PingAccess) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopy creates a deep copy of PingAccess.
+func (in *PingAccess) DeepCopy() *PingAccess {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAccess)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingAccess) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAccessList) DeepCopyInto(out *PingAccessList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]PingAccess, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingAccessList.
+func (in *PingAccessList) DeepCopy() *PingAccessList {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAccessList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingAccessList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// --- PingAuthorize Kind ---
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAuthorizeStatus) DeepCopyInto(out *PingAuthorizeStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingAuthorizeStatus.
+func (in *PingAuthorizeStatus) DeepCopy() *PingAuthorizeStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAuthorizeStatus)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAuthorize) DeepCopyInto(out *PingAuthorize) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopy creates a deep copy of PingAuthorize.
+func (in *PingAuthorize) DeepCopy() *PingAuthorize {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAuthorize)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingAuthorize) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAuthorizeList) DeepCopyInto(out *PingAuthorizeList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]PingAuthorize, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingAuthorizeList.
+func (in *PingAuthorizeList) DeepCopy() *PingAuthorizeList {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAuthorizeList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingAuthorizeList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// --- PingAuthorizePAP Kind ---
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAuthorizePAPStatus) DeepCopyInto(out *PingAuthorizePAPStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingAuthorizePAPStatus.
+func (in *PingAuthorizePAPStatus) DeepCopy() *PingAuthorizePAPStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAuthorizePAPStatus)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAuthorizePAP) DeepCopyInto(out *PingAuthorizePAP) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopy creates a deep copy of PingAuthorizePAP.
+func (in *PingAuthorizePAP) DeepCopy() *PingAuthorizePAP {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAuthorizePAP)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingAuthorizePAP) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingAuthorizePAPList) DeepCopyInto(out *PingAuthorizePAPList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]PingAuthorizePAP, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy creates a deep copy of PingAuthorizePAPList.
+func (in *PingAuthorizePAPList) DeepCopy() *PingAuthorizePAPList {
+	if in == nil {
+		return nil
+	}
+	out := new(PingAuthorizePAPList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject implements runtime.Object.
+func (in *PingAuthorizePAPList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
 }

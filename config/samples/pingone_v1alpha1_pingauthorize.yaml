@@ -1,0 +1,22 @@
+apiVersion: pingone.io/v1alpha1
+kind: PingAuthorize
+metadata:
+  name: dev-paz
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  replicas: 1
+  storageSize: 8Gi
+  ingress:
+    enabled: true
+    tlsSecretRef: paz-tls
+    # hostname auto-derived: paz.dev.example.com
+  container:
+    waitFor:
+      - application: pingDirectory
+        service: ldaps
+        timeoutSeconds: 300
+  config:
+    serverProfile:
+      url: https://github.com/your-org/ping-profiles.git
+      path: pingauthorize

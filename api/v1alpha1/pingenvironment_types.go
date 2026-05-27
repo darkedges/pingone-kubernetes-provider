@@ -117,6 +117,8 @@ type PingAccessConfig struct {
 
 // PingAccessSpec defines the desired state of a PingAccess deployment.
 type PingAccessSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
 	// Image is the container image repository. Omit to use the chart's default.
 	Image string `json:"image,omitempty"`
 	// Version is the container image tag or full image reference (e.g. 8.1.0-edge).
@@ -195,6 +197,8 @@ type PingAuthorizePAPConfig struct {
 
 // PingAuthorizePAPSpec defines the desired state of a PingAuthorize PAP (Policy Editor) deployment.
 type PingAuthorizePAPSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
 	// Image is the container image repository. Omit to use the chart's default.
 	Image string `json:"image,omitempty"`
 	// Version is the container image tag or full image reference.
@@ -212,6 +216,8 @@ type PingAuthorizePAPSpec struct {
 
 // PingAuthorizeSpec defines the desired state of a PingAuthorize deployment.
 type PingAuthorizeSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
 	// Image is the container image repository. Omit to use the chart's default.
 	Image string `json:"image,omitempty"`
 	// Version is the container image tag or full image reference (e.g. 10.3.0.0-edge).
@@ -329,6 +335,8 @@ type PingDirectoryConfig struct {
 
 // PingFederateSpec defines the desired state of a PingFederate deployment.
 type PingFederateSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
 	// Image is the container image repository (e.g. registry.example.com/org/pingfederate).
 	// Omit to use the chart's default image repository.
 	Image string `json:"image,omitempty"`
@@ -368,6 +376,8 @@ type PingDataConsoleSpec struct {
 
 // PingDirectorySpec defines the desired state of a PingDirectory deployment.
 type PingDirectorySpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
 	// Image is the container image repository (e.g. registry.example.com/org/pingdirectory).
 	// Omit to use the chart's default image repository.
 	Image string `json:"image,omitempty"`
@@ -400,19 +410,9 @@ type PingEnvironmentSpec struct {
 	// Ingress holds shared ingress settings inherited by all components.
 	// Set enabled: true to turn on ingress for all components at once.
 	Ingress GlobalIngressSpec `json:"ingress,omitempty"`
-	// PingFederate holds the optional PingFederate deployment configuration.
-	PingFederate *PingFederateSpec `json:"pingFederate,omitempty"`
-	// PingDirectory holds the optional PingDirectory deployment configuration.
-	PingDirectory *PingDirectorySpec `json:"pingDirectory,omitempty"`
 	// PingDataConsole configures the PingDataConsole web UI.
-	// Only deployed when this section is explicitly present.
+	// Only deployed when this section is explicitly present and a PingDirectory CR references this environment.
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
-	// PingAccess holds the optional PingAccess deployment configuration.
-	PingAccess *PingAccessSpec `json:"pingAccess,omitempty"`
-	// PingAuthorize holds the optional PingAuthorize Policy Decision Point deployment configuration.
-	PingAuthorize *PingAuthorizeSpec `json:"pingAuthorize,omitempty"`
-	// PingAuthorizePAP holds the optional PingAuthorize Policy Editor (PAP) deployment configuration.
-	PingAuthorizePAP *PingAuthorizePAPSpec `json:"pingAuthorizePAP,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 }
@@ -421,18 +421,10 @@ type PingEnvironmentSpec struct {
 type PingEnvironmentStatus struct {
 	// Phase is the current lifecycle phase: Pending, Deploying, Ready, or Failed.
 	Phase string `json:"phase"`
+	// Release is the Helm release name managed by this environment.
+	Release string `json:"release,omitempty"`
 	// Conditions holds the latest available observations of the resource's state.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	// PingFederateRelease is the Helm release name for PingFederate.
-	PingFederateRelease string `json:"pingFederateRelease,omitempty"`
-	// PingDirectoryRelease is the Helm release name for PingDirectory.
-	PingDirectoryRelease string `json:"pingDirectoryRelease,omitempty"`
-	// PingAccessRelease is the Helm release name for PingAccess.
-	PingAccessRelease string `json:"pingAccessRelease,omitempty"`
-	// PingAuthorizeRelease is the Helm release name for PingAuthorize.
-	PingAuthorizeRelease string `json:"pingAuthorizeRelease,omitempty"`
-	// PingAuthorizePAPRelease is the Helm release name for PingAuthorizePAP.
-	PingAuthorizePAPRelease string `json:"pingAuthorizePAPRelease,omitempty"`
 	// ObservedGeneration is the generation last processed by the reconciler.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }

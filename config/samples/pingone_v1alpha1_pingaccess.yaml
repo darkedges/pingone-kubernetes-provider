@@ -1,0 +1,26 @@
+apiVersion: pingone.io/v1alpha1
+kind: PingAccess
+metadata:
+  name: dev-pa
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  version: "8.1.0-edge"
+  replicas: 1
+  adminIngress:
+    enabled: true
+    tlsSecretRef: pa-admin-tls
+    # hostname auto-derived: pa-admin.dev.example.com
+  engineIngress:
+    enabled: true
+    tlsSecretRef: pa-tls
+    # hostname auto-derived: pa.dev.example.com
+  container:
+    waitFor:
+      - application: pingFederate
+        service: https
+        timeoutSeconds: 300
+  config:
+    serverProfile:
+      url: https://github.com/your-org/ping-profiles.git
+      path: pingaccess

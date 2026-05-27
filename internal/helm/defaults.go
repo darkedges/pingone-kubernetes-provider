@@ -4,14 +4,14 @@ import (
 	pingonev1alpha1 "github.com/darkedges/pingone-operator/api/v1alpha1"
 )
 
-// applyDefaults fills zero-value fields in spec with the official Ping Identity defaults.
+// applyDefaults fills zero-value fields with the official Ping Identity defaults.
 // It is called before BuildPingValues so that all env var mappings have sensible values.
-func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
-	if spec.PingFederate != nil {
-		if spec.PingFederate.Replicas == 0 {
-			spec.PingFederate.Replicas = 1
+func applyDefaults(env *pingonev1alpha1.PingEnvironmentSpec, products *ProductSpecs) {
+	if products.PingFederate != nil {
+		if products.PingFederate.Replicas == 0 {
+			products.PingFederate.Replicas = 1
 		}
-		pf := &spec.PingFederate.Config
+		pf := &products.PingFederate.Config
 		if pf.EnginePort == 0 {
 			pf.EnginePort = 9031
 		}
@@ -44,11 +44,11 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 		}
 	}
 
-	if spec.PingAccess != nil {
-		if spec.PingAccess.Replicas == 0 {
-			spec.PingAccess.Replicas = 1
+	if products.PingAccess != nil {
+		if products.PingAccess.Replicas == 0 {
+			products.PingAccess.Replicas = 1
 		}
-		pa := &spec.PingAccess.Config
+		pa := &products.PingAccess.Config
 		if pa.AdminPort == 0 {
 			pa.AdminPort = 9000
 		}
@@ -63,11 +63,11 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 		}
 	}
 
-	if spec.PingAuthorize != nil {
-		if spec.PingAuthorize.Replicas == 0 {
-			spec.PingAuthorize.Replicas = 1
+	if products.PingAuthorize != nil {
+		if products.PingAuthorize.Replicas == 0 {
+			products.PingAuthorize.Replicas = 1
 		}
-		paz := &spec.PingAuthorize.Config
+		paz := &products.PingAuthorize.Config
 		if paz.LDAPPort == 0 {
 			paz.LDAPPort = 1389
 		}
@@ -89,13 +89,13 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 		if paz.MaxHeapSize == "" {
 			paz.MaxHeapSize = "1g"
 		}
-		if spec.PingAuthorize.StorageSize == "" {
-			spec.PingAuthorize.StorageSize = "8Gi"
+		if products.PingAuthorize.StorageSize == "" {
+			products.PingAuthorize.StorageSize = "8Gi"
 		}
 	}
 
-	if spec.PingAuthorizePAP != nil {
-		pap := &spec.PingAuthorizePAP.Config
+	if products.PingAuthorizePAP != nil {
+		pap := &products.PingAuthorizePAP.Config
 		if pap.MaxHeapSize == "" {
 			pap.MaxHeapSize = "384m"
 		}
@@ -105,15 +105,15 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 		}
 	}
 
-	if spec.PingDirectory == nil {
+	if products.PingDirectory == nil {
 		return
 	}
 
-	if spec.PingDirectory.Replicas == 0 {
-		spec.PingDirectory.Replicas = 1
+	if products.PingDirectory.Replicas == 0 {
+		products.PingDirectory.Replicas = 1
 	}
 
-	pd := &spec.PingDirectory.Config
+	pd := &products.PingDirectory.Config
 
 	if pd.UserBaseDN == "" {
 		pd.UserBaseDN = "dc=example,dc=com"
@@ -136,7 +136,7 @@ func applyDefaults(spec *pingonev1alpha1.PingEnvironmentSpec) {
 	if pd.RetryTimeoutSeconds == 0 {
 		pd.RetryTimeoutSeconds = 180
 	}
-	if spec.PingDirectory.StorageSize == "" {
-		spec.PingDirectory.StorageSize = "8Gi"
+	if products.PingDirectory.StorageSize == "" {
+		products.PingDirectory.StorageSize = "8Gi"
 	}
 }
