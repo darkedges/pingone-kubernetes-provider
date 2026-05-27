@@ -1,0 +1,15 @@
+apiVersion: v2
+name: pingone-operator
+description: A Helm chart for deploying the PingOne Kubernetes Operator
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - pingone
+  - operator
+  - kubernetes
+home: https://github.com/darkedges/pingone-operator
+sources:
+  - https://github.com/darkedges/pingone-operator
+maintainers:
+  - name: pingone-operator maintainers

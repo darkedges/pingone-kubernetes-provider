@@ -23,3 +23,6 @@ vendor/
 .env
 .env.*
 .claude
+REGISTRY.md
+dist/pingone-operator-0.1.0.tgz
+COMMIT.md

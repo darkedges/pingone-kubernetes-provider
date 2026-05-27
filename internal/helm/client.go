@@ -2,6 +2,7 @@
 package helm
 
 import (
+	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
@@ -9,7 +10,6 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"helm.sh/helm/v3/pkg/action"
 )
 
 // NewHelmClient initialises a Helm action.Configuration scoped to the given namespace

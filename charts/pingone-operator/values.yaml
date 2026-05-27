@@ -1,0 +1,65 @@
+replicaCount: 1
+
+image:
+  repository: pingone-operator
+  pullPolicy: IfNotPresent
+  tag: latest
+
+manager:
+  command:
+    - /manager
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+rbac:
+  create: true
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 65532
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+metrics:
+  bindAddress: ":8080"
+
+health:
+  bindAddress: ":8081"
+
+leaderElection:
+  enabled: true
+
+watchNamespace:
+  currentNamespaceOnly: true
+  value: ""
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

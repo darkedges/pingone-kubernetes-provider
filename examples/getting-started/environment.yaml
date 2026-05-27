@@ -31,8 +31,8 @@ spec:
   tier: development
   domain: localhost
 
-  # Shared ingress settings — inherited by all component ingresses below.
-  # Remove this block (and the engineIngress/adminIngress/console.ingress blocks)
+  # Shared ingress settings — inherited by all product ingresses below.
+  # Remove this block (and the engineIngress/adminIngress blocks in product CRs)
   # if you do not have an ingress controller installed.
   ingress:
     className: nginx
@@ -40,29 +40,42 @@ spec:
       nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       cert-manager.io/cluster-issuer: "selfsigned-cluster-issuer"
-
-  pingFederate:
-    version: "13.0.2-edge"
-    replicas: 1
-    engineIngress:
-      enabled: true
-      tlsSecretRef: pf-tls           # hostname: pf.localhost
-    adminIngress:
-      enabled: true
-      tlsSecretRef: pf-admin-tls     # hostname: pf-admin.localhost
-    config:
-      serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
-      serverProfilePath: getting-started/pingfederate
-
-  # Uncomment to deploy PingDirectory alongside PingFederate.
-  # pingDirectory:
-  #   version: "11.0.0.2-edge"
-  #   replicas: 1
-  #   console:
-  #     ingress:
-  #       enabled: true
-  #       tlsSecretRef: pd-console-tls  # hostname: pd-console.localhost
-  #   config:
-  #     serverProfileURL: https://github.com/pingidentity/pingidentity-server-profiles.git
-  #     serverProfilePath: getting-started/pingdirectory
-  #     userBaseDN: "dc=example,dc=com"
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingFederate
+metadata:
+  name: getting-started-pf
+  namespace: pingone
+spec:
+  environmentRef: env-getting-started
+  # image: registry.example.com/org/pingfederate  # optional: override image repository
+  # version: "13.0.2-edge"                        # optional: override image tag
+  replicas: 1
+  engineIngress:
+    enabled: true
+    # tlsSecretRef auto-generated: getting-started-pf-tls
+    # hostname auto-derived:       pf.localhost
+  adminIngress:
+    enabled: true
+    # tlsSecretRef auto-generated: getting-started-pf-admin-tls
+    # hostname auto-derived:       pf-admin.localhost
+  config:
+    serverProfile:
+      url: https://github.com/pingidentity/pingidentity-server-profiles.git
+      path: getting-started/pingfederate
+---
+# Uncomment to deploy PingDirectory alongside PingFederate.
+# apiVersion: pingone.io/v1alpha1
+# kind: PingDirectory
+# metadata:
+#   name: getting-started-pd
+#   namespace: pingone
+# spec:
+#   environmentRef: env-getting-started
+#   # version: "11.0.0.2-edge"  # optional: override image tag
+#   replicas: 1
+#   config:
+#     serverProfile:
+#       url: https://github.com/pingidentity/pingidentity-server-profiles.git
+#       path: getting-started/pingdirectory
+#     userBaseDN: "dc=example,dc=com"

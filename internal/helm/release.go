@@ -161,21 +161,21 @@ func TierResources(tier, product string) (cpu, memory string) {
 	}
 }
 
+// ProductSpecs bundles the optional per-product specs contributed by each product CR.
+// A nil entry means that product is not deployed.
+type ProductSpecs struct {
+	PingFederate     *pingonev1alpha1.PingFederateSpec
+	PingDirectory    *pingonev1alpha1.PingDirectorySpec
+	PingAccess       *pingonev1alpha1.PingAccessSpec
+	PingAuthorize    *pingonev1alpha1.PingAuthorizeSpec
+	PingAuthorizePAP *pingonev1alpha1.PingAuthorizePAPSpec
+}
+
 // BuildPingValues constructs the full Helm values map for a ping-devops release
-// from a PingEnvironment spec. It applies defaults, builds the global section,
-// the pingfederate sub-chart section, and the pingdirectory sub-chart section,
-// then merges any ValuesOverride on top.
-func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, error) {
-	applyDefaults(&spec)
-
-	pfCPU, pfMem := TierResources(spec.Tier, "pf")
-	pfCfg := spec.PingFederate.Config
-	pfIng := resolveIngressSpec(spec.Ingress, spec.PingFederate.EngineIngress)
-	pfAdminIng := resolveIngressSpec(spec.Ingress, spec.PingFederate.AdminIngress)
-
-	// Resolve hostnames from domain when not explicitly set
-	engineHostname := resolveHostname(pfIng.Hostname, "pf", spec.Domain)
-	adminHostname := resolveHostname(pfAdminIng.Hostname, "pf-admin", spec.Domain)
+// from a PingEnvironment spec and per-product specs. It applies defaults, builds
+// the global section, per-product sub-chart sections, and merges any ValuesOverride on top.
+func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSpecs) (map[string]any, error) {
+	applyDefaults(&env, &products)
 
 	// Build global section
 	globalValues := map[string]any{
@@ -192,204 +192,191 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		},
 	}
 
-	// Build PingFederate envs
-	pfEnvs := map[string]any{}
-
-	// Server profile
-	if pfCfg.ServerProfileURL != "" {
-		pfEnvs["SERVER_PROFILE_URL"] = pfCfg.ServerProfileURL
-	}
-	if pfCfg.ServerProfileBranch != "" {
-		pfEnvs["SERVER_PROFILE_BRANCH"] = pfCfg.ServerProfileBranch
-	}
-	if pfCfg.ServerProfilePath != "" {
-		pfEnvs["SERVER_PROFILE_PATH"] = pfCfg.ServerProfilePath
-	}
-	pfEnvs["SERVER_PROFILE_UPDATE"] = "false"
-
-	// Ports (always set after defaults applied)
-	pfEnvs["PF_ENGINE_PORT"] = fmt.Sprintf("%d", pfCfg.EnginePort)
-	pfEnvs["PF_ADMIN_PORT"] = fmt.Sprintf("%d", pfCfg.AdminPort)
-
-	// Hostnames
-	if pfCfg.EnginePublicHostname != "" {
-		pfEnvs["PF_ENGINE_PUBLIC_HOSTNAME"] = pfCfg.EnginePublicHostname
-	}
-	if pfCfg.AdminPublicHostname != "" {
-		pfEnvs["PF_ADMIN_PUBLIC_HOSTNAME"] = pfCfg.AdminPublicHostname
-	}
-	if pfCfg.AdminPublicBaseURL != "" {
-		pfEnvs["PF_ADMIN_PUBLIC_BASEURL"] = pfCfg.AdminPublicBaseURL
-	}
-
-	// Console branding
-	if pfCfg.ConsoleEnvironment != "" {
-		pfEnvs["PF_CONSOLE_ENV"] = pfCfg.ConsoleEnvironment
-	}
-	if pfCfg.ConsoleTitle != "" {
-		pfEnvs["PF_CONSOLE_TITLE"] = pfCfg.ConsoleTitle
-	}
-
-	// Operational mode
-	pfEnvs["OPERATIONAL_MODE"] = pfCfg.OperationalMode
-	pfEnvs["CLUSTER_BIND_ADDRESS"] = "NON_LOOPBACK"
-
-	// Authentication
-	pfEnvs["PF_CONSOLE_AUTHENTICATION"] = pfCfg.ConsoleAuthentication
-	pfEnvs["PF_ADMIN_API_AUTHENTICATION"] = pfCfg.AdminAPIAuthentication
-	pfEnvs["PF_LDAP_TYPE"] = pfCfg.LDAPType
-	if pfCfg.LDAPUsername != "" {
-		pfEnvs["PF_LDAP_USERNAME"] = pfCfg.LDAPUsername
-	}
-
-	// PingOne integration
-	if pfCfg.PingOneRegion != "" {
-		pfEnvs["PF_PINGONE_REGION"] = pfCfg.PingOneRegion
-	}
-	if pfCfg.PingOneEnvID != "" {
-		pfEnvs["PF_PINGONE_ENV_ID"] = pfCfg.PingOneEnvID
-	}
-
-	// Provisioner
-	pfEnvs["PF_PROVISIONER_MODE"] = pfCfg.ProvisionerMode
-	pfEnvs["PF_PROVISIONER_NODE_ID"] = fmt.Sprintf("%d", pfCfg.ProvisionerNodeID)
-	pfEnvs["PF_PROVISIONER_GRACE_PERIOD"] = "600"
-
-	// JVM
-	pfEnvs["JAVA_RAM_PERCENTAGE"] = pfCfg.JavaRAMPercentage
-
-	// HSM
-	pfEnvs["HSM_MODE"] = pfCfg.HSMMode
-
-	// Logging
-	pfEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/log/server.log"
-
-	// Build PingFederate envFrom
-	pfEnvFrom := map[string]any{}
-	if pfCfg.AdminSecretRef != "" || pfCfg.LDAPSecretRef != "" {
-		secretRefs := []map[string]any{}
-		if pfCfg.AdminSecretRef != "" {
-			secretRefs = append(secretRefs, map[string]any{"name": pfCfg.AdminSecretRef})
-		}
-		if pfCfg.LDAPSecretRef != "" {
-			secretRefs = append(secretRefs, map[string]any{"name": pfCfg.LDAPSecretRef})
-		}
-		pfEnvFrom["secretRef"] = secretRefs
-	}
-	if pfCfg.EnvConfigMapRef != "" {
-		pfEnvFrom["configMapRef"] = []map[string]any{
-			{"name": pfCfg.EnvConfigMapRef},
-		}
-	}
-
-	// Build PingFederate engine ingress
-	var pfEngineIngressValues map[string]any
-	if pfIng.Enabled {
-		pfEngineIngressValues = buildIngressValues(pfIng, engineHostname)
+	// Build PingFederate sections
+	var pfAdminValues, pfEngineValues map[string]any
+	if products.PingFederate == nil {
+		pfAdminValues = map[string]any{"enabled": false}
+		pfEngineValues = map[string]any{"enabled": false}
 	} else {
-		pfEngineIngressValues = map[string]any{"enabled": false}
-	}
+		pfCPU, pfMem := TierResources(env.Tier, "pf")
+		pfCfg := products.PingFederate.Config
+		pfIng := resolveIngressSpec(env.Ingress, products.PingFederate.EngineIngress)
+		pfAdminIng := resolveIngressSpec(env.Ingress, products.PingFederate.AdminIngress)
 
-	// Build PingFederate admin ingress
-	var pfAdminIngressValues map[string]any
-	adminSvc := map[string]any{
-		"containerPort": pfCfg.AdminPort,
-		"servicePort":   pfCfg.AdminPort,
-		"dataService":   true,
-	}
-	if pfAdminIng.Enabled {
-		pfAdminIngressValues = buildIngressValues(pfAdminIng, adminHostname)
-		adminSvc["ingressPort"] = 443
-	} else {
-		pfAdminIngressValues = map[string]any{"enabled": false}
-	}
+		// Resolve hostnames from domain when not explicitly set
+		engineHostname := resolveHostname(pfIng.Hostname, "pf", env.Domain)
+		adminHostname := resolveHostname(pfAdminIng.Hostname, "pf-admin", env.Domain)
 
-	// Assemble pingfederate-admin section (admin console, 1 replica)
-	pfAdminValues := map[string]any{
-		"enabled": true,
-		"workload": map[string]any{
-			"type": "Deployment",
-			"deployment": map[string]any{
-				"replicas": 1,
-			},
-		},
-		"image": map[string]any{
-			"tag": spec.PingFederate.Version,
-		},
-		"container": map[string]any{
-			"resources": map[string]any{
-				"requests": map[string]any{
-					"cpu":    pfCPU,
-					"memory": pfMem,
+		// Build PingFederate envs
+		pfEnvs := map[string]any{}
+
+		emitServerProfileEnvs(pfEnvs, pfCfg.ServerProfile, pfCfg.ServerProfileLayers)
+		pfEnvs["SERVER_PROFILE_UPDATE"] = "false"
+
+		// Ports (always set after defaults applied)
+		pfEnvs["PF_ENGINE_PORT"] = fmt.Sprintf("%d", pfCfg.EnginePort)
+		pfEnvs["PF_ADMIN_PORT"] = fmt.Sprintf("%d", pfCfg.AdminPort)
+
+		// Hostnames
+		if pfCfg.EnginePublicHostname != "" {
+			pfEnvs["PF_ENGINE_PUBLIC_HOSTNAME"] = pfCfg.EnginePublicHostname
+		}
+		if pfCfg.AdminPublicHostname != "" {
+			pfEnvs["PF_ADMIN_PUBLIC_HOSTNAME"] = pfCfg.AdminPublicHostname
+		}
+		if pfCfg.AdminPublicBaseURL != "" {
+			pfEnvs["PF_ADMIN_PUBLIC_BASEURL"] = pfCfg.AdminPublicBaseURL
+		}
+
+		// Console branding
+		if pfCfg.ConsoleEnvironment != "" {
+			pfEnvs["PF_CONSOLE_ENV"] = pfCfg.ConsoleEnvironment
+		}
+		if pfCfg.ConsoleTitle != "" {
+			pfEnvs["PF_CONSOLE_TITLE"] = pfCfg.ConsoleTitle
+		}
+
+		// Operational mode
+		pfEnvs["OPERATIONAL_MODE"] = pfCfg.OperationalMode
+		pfEnvs["CLUSTER_BIND_ADDRESS"] = "NON_LOOPBACK"
+
+		// Authentication
+		pfEnvs["PF_CONSOLE_AUTHENTICATION"] = pfCfg.ConsoleAuthentication
+		pfEnvs["PF_ADMIN_API_AUTHENTICATION"] = pfCfg.AdminAPIAuthentication
+		pfEnvs["PF_LDAP_TYPE"] = pfCfg.LDAPType
+		if pfCfg.LDAPUsername != "" {
+			pfEnvs["PF_LDAP_USERNAME"] = pfCfg.LDAPUsername
+		}
+
+		// PingOne integration
+		if pfCfg.PingOneRegion != "" {
+			pfEnvs["PF_PINGONE_REGION"] = pfCfg.PingOneRegion
+		}
+		if pfCfg.PingOneEnvID != "" {
+			pfEnvs["PF_PINGONE_ENV_ID"] = pfCfg.PingOneEnvID
+		}
+
+		// Provisioner
+		pfEnvs["PF_PROVISIONER_MODE"] = pfCfg.ProvisionerMode
+		pfEnvs["PF_PROVISIONER_NODE_ID"] = fmt.Sprintf("%d", pfCfg.ProvisionerNodeID)
+		pfEnvs["PF_PROVISIONER_GRACE_PERIOD"] = "600"
+
+		// JVM
+		pfEnvs["JAVA_RAM_PERCENTAGE"] = pfCfg.JavaRAMPercentage
+
+		// HSM
+		pfEnvs["HSM_MODE"] = pfCfg.HSMMode
+
+		// Logging
+		pfEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/log/server.log"
+
+		// Build PingFederate envFrom
+		pfEnvFrom := map[string]any{}
+		if pfCfg.AdminSecretRef != "" || pfCfg.LDAPSecretRef != "" {
+			secretRefs := []map[string]any{}
+			if pfCfg.AdminSecretRef != "" {
+				secretRefs = append(secretRefs, map[string]any{"name": pfCfg.AdminSecretRef})
+			}
+			if pfCfg.LDAPSecretRef != "" {
+				secretRefs = append(secretRefs, map[string]any{"name": pfCfg.LDAPSecretRef})
+			}
+			pfEnvFrom["secretRef"] = secretRefs
+		}
+		if pfCfg.EnvConfigMapRef != "" {
+			pfEnvFrom["configMapRef"] = []map[string]any{
+				{"name": pfCfg.EnvConfigMapRef},
+			}
+		}
+
+		// Auto-derive TLS secret names when not explicitly set
+		pfIng.TLSSecretRef = resolveTLSSecretRef(pfIng.TLSSecretRef, env.TenantID, "pf")
+		pfAdminIng.TLSSecretRef = resolveTLSSecretRef(pfAdminIng.TLSSecretRef, env.TenantID, "pf-admin")
+
+		// Build PingFederate engine ingress
+		var pfEngineIngressValues map[string]any
+		if ingressEnabled(pfIng) {
+			pfEngineIngressValues = buildIngressValues(pfIng, engineHostname)
+		} else {
+			pfEngineIngressValues = map[string]any{"enabled": false}
+		}
+
+		// Build PingFederate admin ingress
+		var pfAdminIngressValues map[string]any
+		adminSvc := map[string]any{
+			"containerPort": pfCfg.AdminPort,
+			"servicePort":   pfCfg.AdminPort,
+			"dataService":   true,
+		}
+		if ingressEnabled(pfAdminIng) {
+			pfAdminIngressValues = buildIngressValues(pfAdminIng, adminHostname)
+			adminSvc["ingressPort"] = 443
+		} else {
+			pfAdminIngressValues = map[string]any{"enabled": false}
+		}
+
+		pfImageValues := buildImageValues(products.PingFederate.Image, products.PingFederate.Version)
+
+		// Assemble pingfederate-admin section (admin console, 1 replica)
+		pfAdminValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": 1,
 				},
 			},
-		},
-		"envs": pfEnvs,
-		"services": map[string]any{
-			"https": adminSvc,
-		},
-		"ingress": pfAdminIngressValues,
-	}
-	if len(pfEnvFrom) > 0 {
-		pfAdminValues["envFrom"] = pfEnvFrom
-	}
-
-	// Assemble pingfederate-engine section (runtime engine, user-specified replicas)
-	pfEngineValues := map[string]any{
-		"enabled": true,
-		"workload": map[string]any{
-			"type": "Deployment",
-			"deployment": map[string]any{
-				"replicas": spec.PingFederate.Replicas,
+			"image":     pfImageValues,
+			"container": buildContainerValues(pfCPU, pfMem, products.PingFederate.Container),
+			"envs":      pfEnvs,
+			"services": map[string]any{
+				"https": adminSvc,
 			},
-		},
-		"image": map[string]any{
-			"tag": spec.PingFederate.Version,
-		},
-		"container": map[string]any{
-			"resources": map[string]any{
-				"requests": map[string]any{
-					"cpu":    pfCPU,
-					"memory": pfMem,
+			"ingress": pfAdminIngressValues,
+		}
+		if len(pfEnvFrom) > 0 {
+			pfAdminValues["envFrom"] = pfEnvFrom
+		}
+
+		// Assemble pingfederate-engine section (runtime engine, user-specified replicas)
+		pfEngineValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": products.PingFederate.Replicas,
 				},
 			},
-		},
-		"envs": pfEnvs,
-		"services": map[string]any{
-			"https": map[string]any{
-				"containerPort": pfCfg.EnginePort,
-				"servicePort":   pfCfg.EnginePort,
-				"ingressPort":   443,
-				"dataService":   true,
+			"image":     pfImageValues,
+			"container": buildContainerValues(pfCPU, pfMem, products.PingFederate.Container),
+			"envs":      pfEnvs,
+			"services": map[string]any{
+				"https": map[string]any{
+					"containerPort": pfCfg.EnginePort,
+					"servicePort":   pfCfg.EnginePort,
+					"ingressPort":   443,
+					"dataService":   true,
+				},
 			},
-		},
-		"ingress": pfEngineIngressValues,
-	}
-	if len(pfEnvFrom) > 0 {
-		pfEngineValues["envFrom"] = pfEnvFrom
-	}
+			"ingress": pfEngineIngressValues,
+		}
+		if len(pfEnvFrom) > 0 {
+			pfEngineValues["envFrom"] = pfEnvFrom
+		}
+	} // end PingFederate
 
 	// Assemble pingdirectory section
 	var pdValues map[string]any
-	if spec.PingDirectory == nil {
+	if products.PingDirectory == nil {
 		pdValues = map[string]any{"enabled": false}
 	} else {
-		pdCPU, pdMem := TierResources(spec.Tier, "pd")
-		pdCfg := spec.PingDirectory.Config
-		pdSpec := spec.PingDirectory
+		pdCPU, pdMem := TierResources(env.Tier, "pd")
+		pdCfg := products.PingDirectory.Config
+		pdSpec := products.PingDirectory
 
 		// Build PingDirectory envs
 		pdEnvs := map[string]any{}
 
-		if pdCfg.ServerProfileURL != "" {
-			pdEnvs["SERVER_PROFILE_URL"] = pdCfg.ServerProfileURL
-		}
-		if pdCfg.ServerProfileBranch != "" {
-			pdEnvs["SERVER_PROFILE_BRANCH"] = pdCfg.ServerProfileBranch
-		}
-		if pdCfg.ServerProfilePath != "" {
-			pdEnvs["SERVER_PROFILE_PATH"] = pdCfg.ServerProfilePath
-		}
+		emitServerProfileEnvs(pdEnvs, pdCfg.ServerProfile, pdCfg.ServerProfileLayers)
 
 		pdEnvs["USER_BASE_DN"] = pdCfg.UserBaseDN
 		if pdCfg.ReplicationBaseDNs != "" {
@@ -461,18 +448,9 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 					},
 				},
 			},
-			"image": map[string]any{
-				"tag": pdSpec.Version,
-			},
-			"container": map[string]any{
-				"resources": map[string]any{
-					"requests": map[string]any{
-						"cpu":    pdCPU,
-						"memory": pdMem,
-					},
-				},
-			},
-			"envs": pdEnvs,
+			"image":     buildImageValues(pdSpec.Image, pdSpec.Version),
+			"container": buildContainerValues(pdCPU, pdMem, pdSpec.Container),
+			"envs":      pdEnvs,
 			"services": map[string]any{
 				"ldap": map[string]any{
 					"containerPort":  pdCfg.LDAPPort,
@@ -497,34 +475,44 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		}
 	}
 
-	// Assemble pingdataconsole section
+	// Assemble pingdataconsole section.
+	// Only deployed when spec.pingDataConsole is explicitly set and not disabled.
 	var pdcValues map[string]any
-	if spec.PingDirectory != nil && spec.PingDirectory.Console != nil {
-		pdc := spec.PingDirectory.Console
-		pdcVersion := pdc.Version
-		if pdcVersion == "" {
-			pdcVersion = spec.PingDirectory.Version
+	pdcShouldEnable := products.PingDirectory != nil &&
+		env.PingDataConsole != nil &&
+		(env.PingDataConsole.Enabled == nil || *env.PingDataConsole.Enabled)
+	if pdcShouldEnable {
+		var pdc pingonev1alpha1.PingDataConsoleSpec
+		if env.PingDataConsole != nil {
+			pdc = *env.PingDataConsole
 		}
-		pdcIng := resolveIngressSpec(spec.Ingress, pdc.Ingress)
-		pdcHostname := resolveHostname(pdcIng.Hostname, "pd-console", spec.Domain)
+		pdcIng := resolveIngressSpec(env.Ingress, pdc.Ingress)
+		pdcIng.TLSSecretRef = resolveTLSSecretRef(pdcIng.TLSSecretRef, env.TenantID, "pd-console")
+		pdcHostname := resolveHostname(pdcIng.Hostname, "pd-console", env.Domain)
 
 		var pdcIngressValues map[string]any
-		if pdcIng.Enabled {
+		if ingressEnabled(pdcIng) {
 			pdcIngressValues = buildIngressValues(pdcIng, pdcHostname)
 		} else {
 			pdcIngressValues = map[string]any{"enabled": false}
 		}
 
 		// Cluster service name for PingDirectory: <tenantId>-ping-pingdirectory-cluster
-		pdClusterSvc := fmt.Sprintf("%s-ping-pingdirectory-cluster", spec.TenantID)
+		pdClusterSvc := fmt.Sprintf("%s-ping-pingdirectory-cluster", env.TenantID)
+
+		// Console image: use explicit image/version, fall back to PingDirectory's values
+		pdcImage := buildImageValues(
+			firstNonEmpty(pdc.Image, products.PingDirectory.Image),
+			firstNonEmpty(pdc.Version, products.PingDirectory.Version),
+		)
 
 		pdcValues = map[string]any{
 			"enabled": true,
-			"image":   map[string]any{"tag": pdcVersion},
+			"image":   pdcImage,
 			"defaultLogin": map[string]any{
 				"server": map[string]any{
 					"host": pdClusterSvc,
-					"port": spec.PingDirectory.Config.LDAPSPort,
+					"port": products.PingDirectory.Config.LDAPSPort,
 				},
 			},
 			"ingress": pdcIngressValues,
@@ -533,35 +521,498 @@ func BuildPingValues(spec pingonev1alpha1.PingEnvironmentSpec) (map[string]any, 
 		pdcValues = map[string]any{"enabled": false}
 	}
 
+	// Assemble pingaccess-admin and pingaccess-engine sections
+	var paAdminValues, paEngineValues map[string]any
+	if products.PingAccess == nil {
+		paAdminValues = map[string]any{"enabled": false}
+		paEngineValues = map[string]any{"enabled": false}
+	} else {
+		paCPU, paMem := TierResources(env.Tier, "pf")
+		paCfg := products.PingAccess.Config
+		paAdminIng := resolveIngressSpec(env.Ingress, products.PingAccess.AdminIngress)
+		paEngineIng := resolveIngressSpec(env.Ingress, products.PingAccess.EngineIngress)
+		paAdminIng.TLSSecretRef = resolveTLSSecretRef(paAdminIng.TLSSecretRef, env.TenantID, "pa-admin")
+		paEngineIng.TLSSecretRef = resolveTLSSecretRef(paEngineIng.TLSSecretRef, env.TenantID, "pa")
+		paAdminHostname := resolveHostname(paAdminIng.Hostname, "pa-admin", env.Domain)
+		paEngineHostname := resolveHostname(paEngineIng.Hostname, "pa", env.Domain)
+
+		paEnvs := map[string]any{
+			"PA_ADMIN_PORT":       fmt.Sprintf("%d", paCfg.AdminPort),
+			"PA_ENGINE_PORT":      fmt.Sprintf("%d", paCfg.EnginePort),
+			"OPERATIONAL_MODE":    paCfg.OperationalMode,
+			"FIPS_MODE_ON":        fmt.Sprintf("%t", paCfg.FIPSModeOn),
+			"JAVA_RAM_PERCENTAGE": paCfg.JavaRAMPercentage,
+			"TAIL_LOG_FILES":      "${SERVER_ROOT_DIR}/log/pingaccess.log",
+		}
+		emitServerProfileEnvs(paEnvs, paCfg.ServerProfile, paCfg.ServerProfileLayers)
+		if paCfg.AdminPublicHostname != "" {
+			paEnvs["PA_ADMIN_PUBLIC_HOSTNAME"] = paCfg.AdminPublicHostname
+		}
+		if paCfg.EnginePublicHostname != "" {
+			paEnvs["PA_ENGINE_PUBLIC_HOSTNAME"] = paCfg.EnginePublicHostname
+		}
+
+		paEnvFrom := map[string]any{}
+		if paCfg.AdminSecretRef != "" {
+			paEnvFrom["secretRef"] = []map[string]any{{"name": paCfg.AdminSecretRef}}
+		}
+		if paCfg.EnvConfigMapRef != "" {
+			paEnvFrom["configMapRef"] = []map[string]any{{"name": paCfg.EnvConfigMapRef}}
+		}
+
+		var paAdminIngressValues map[string]any
+		if ingressEnabled(paAdminIng) {
+			paAdminIngressValues = buildIngressValues(paAdminIng, paAdminHostname)
+		} else {
+			paAdminIngressValues = map[string]any{"enabled": false}
+		}
+
+		var paEngineIngressValues map[string]any
+		if ingressEnabled(paEngineIng) {
+			paEngineIngressValues = buildIngressValues(paEngineIng, paEngineHostname)
+		} else {
+			paEngineIngressValues = map[string]any{"enabled": false}
+		}
+
+		paImageValues := buildImageValues(products.PingAccess.Image, products.PingAccess.Version)
+
+		paAdminValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": 1,
+				},
+			},
+			"image":     paImageValues,
+			"container": buildContainerValues(paCPU, paMem, products.PingAccess.Container),
+			"envs":      paEnvs,
+			"services": map[string]any{
+				"https": map[string]any{
+					"containerPort": paCfg.AdminPort,
+					"servicePort":   paCfg.AdminPort,
+					"dataService":   true,
+					"ingressPort":   443,
+				},
+			},
+			"ingress": paAdminIngressValues,
+		}
+		if len(paEnvFrom) > 0 {
+			paAdminValues["envFrom"] = paEnvFrom
+		}
+
+		paEngineValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": products.PingAccess.Replicas,
+				},
+			},
+			"image":     paImageValues,
+			"container": buildContainerValues(paCPU, paMem, products.PingAccess.Container),
+			"envs":      paEnvs,
+			"services": map[string]any{
+				"https": map[string]any{
+					"containerPort": paCfg.EnginePort,
+					"servicePort":   paCfg.EnginePort,
+					"dataService":   true,
+					"ingressPort":   443,
+				},
+			},
+			"ingress": paEngineIngressValues,
+		}
+		if len(paEnvFrom) > 0 {
+			paEngineValues["envFrom"] = paEnvFrom
+		}
+	}
+
+	// Assemble pingauthorize section
+	var pazValues map[string]any
+	if products.PingAuthorize == nil {
+		pazValues = map[string]any{"enabled": false}
+	} else {
+		pazCPU, pazMem := TierResources(env.Tier, "pd")
+		pazCfg := products.PingAuthorize.Config
+		pazSpec := products.PingAuthorize
+		pazIng := resolveIngressSpec(env.Ingress, pazSpec.Ingress)
+		pazIng.TLSSecretRef = resolveTLSSecretRef(pazIng.TLSSecretRef, env.TenantID, "paz")
+		pazHostname := resolveHostname(pazIng.Hostname, "paz", env.Domain)
+
+		pazEnvs := map[string]any{
+			"USER_BASE_DN":          pazCfg.UserBaseDN,
+			"LDAP_PORT":             fmt.Sprintf("%d", pazCfg.LDAPPort),
+			"LDAPS_PORT":            fmt.Sprintf("%d", pazCfg.LDAPSPort),
+			"HTTPS_PORT":            fmt.Sprintf("%d", pazCfg.HTTPSPort),
+			"ADMIN_USER_NAME":       pazCfg.AdminUserName,
+			"RETRY_TIMEOUT_SECONDS": fmt.Sprintf("%d", pazCfg.RetryTimeoutSeconds),
+			"MAX_HEAP_SIZE":         pazCfg.MaxHeapSize,
+			"TAIL_LOG_FILES":        "${SERVER_ROOT_DIR}/logs/access ${SERVER_ROOT_DIR}/logs/errors",
+		}
+		emitServerProfileEnvs(pazEnvs, pazCfg.ServerProfile, pazCfg.ServerProfileLayers)
+
+		pazEnvFrom := map[string]any{}
+		if pazCfg.AdminSecretRef != "" || pazCfg.EncryptionSecretRef != "" {
+			secretRefs := []map[string]any{}
+			if pazCfg.AdminSecretRef != "" {
+				secretRefs = append(secretRefs, map[string]any{"name": pazCfg.AdminSecretRef})
+			}
+			if pazCfg.EncryptionSecretRef != "" {
+				secretRefs = append(secretRefs, map[string]any{"name": pazCfg.EncryptionSecretRef})
+			}
+			pazEnvFrom["secretRef"] = secretRefs
+		}
+		if pazCfg.EnvConfigMapRef != "" {
+			pazEnvFrom["configMapRef"] = []map[string]any{{"name": pazCfg.EnvConfigMapRef}}
+		}
+
+		var pazIngressValues map[string]any
+		if ingressEnabled(pazIng) {
+			pazIngressValues = buildIngressValues(pazIng, pazHostname)
+		} else {
+			pazIngressValues = map[string]any{"enabled": false}
+		}
+
+		pvcClaim := map[string]any{
+			"accessModes": []string{"ReadWriteOnce"},
+			"resources": map[string]any{
+				"requests": map[string]any{"storage": pazSpec.StorageSize},
+			},
+		}
+		if pazSpec.StorageClass != "" {
+			pvcClaim["storageClassName"] = pazSpec.StorageClass
+		}
+
+		pazValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "StatefulSet",
+				"statefulSet": map[string]any{
+					"replicas":            pazSpec.Replicas,
+					"podManagementPolicy": "OrderedReady",
+					"persistentvolume": map[string]any{
+						"enabled": true,
+						"volumes": map[string]any{
+							"out-dir": map[string]any{
+								"mountPath":             "/opt/out",
+								"persistentVolumeClaim": pvcClaim,
+							},
+						},
+					},
+				},
+			},
+			"image":     buildImageValues(pazSpec.Image, pazSpec.Version),
+			"container": buildContainerValues(pazCPU, pazMem, pazSpec.Container),
+			"envs":      pazEnvs,
+			"services": map[string]any{
+				"ldap": map[string]any{
+					"containerPort":  pazCfg.LDAPPort,
+					"servicePort":    pazCfg.LDAPPort,
+					"clusterService": true,
+				},
+				"ldaps": map[string]any{
+					"containerPort":  pazCfg.LDAPSPort,
+					"servicePort":    pazCfg.LDAPSPort,
+					"clusterService": true,
+				},
+				"https": map[string]any{
+					"containerPort": pazCfg.HTTPSPort,
+					"servicePort":   pazCfg.HTTPSPort,
+					"dataService":   true,
+				},
+			},
+			"ingress": pazIngressValues,
+		}
+		if len(pazEnvFrom) > 0 {
+			pazValues["envFrom"] = pazEnvFrom
+		}
+	}
+
+	// Assemble pingauthorizepap section
+	var papValues map[string]any
+	if products.PingAuthorizePAP == nil {
+		papValues = map[string]any{"enabled": false}
+	} else {
+		papCfg := products.PingAuthorizePAP.Config
+		papIng := resolveIngressSpec(env.Ingress, products.PingAuthorizePAP.Ingress)
+		papIng.TLSSecretRef = resolveTLSSecretRef(papIng.TLSSecretRef, env.TenantID, "paz-pap")
+		papHostname := resolveHostname(papIng.Hostname, "paz-pap", env.Domain)
+
+		// Derive PING_EXTERNAL_BASE_URL from ingress hostname when not set
+		externalBaseURL := papCfg.ExternalBaseURL
+		if externalBaseURL == "" && papHostname != "" {
+			externalBaseURL = "https://" + papHostname
+		}
+
+		papEnvs := map[string]any{
+			"MAX_HEAP_SIZE":              papCfg.MaxHeapSize,
+			"PING_ENABLE_API_HTTP_CACHE": fmt.Sprintf("%t", *papCfg.EnableAPIHTTPCache),
+		}
+		if externalBaseURL != "" {
+			papEnvs["PING_EXTERNAL_BASE_URL"] = externalBaseURL
+		}
+		if papCfg.OIDCConfigEndpoint != "" {
+			papEnvs["PING_OIDC_CONFIGURATION_ENDPOINT"] = papCfg.OIDCConfigEndpoint
+		}
+		if papCfg.ClientID != "" {
+			papEnvs["PING_CLIENT_ID"] = papCfg.ClientID
+		}
+		if papCfg.PolicyDBSync {
+			papEnvs["PING_POLICY_DB_SYNC"] = "true"
+		}
+		emitServerProfileEnvs(papEnvs, papCfg.ServerProfile, papCfg.ServerProfileLayers)
+
+		papEnvFrom := map[string]any{}
+		if papCfg.SharedSecretRef != "" {
+			papEnvFrom["secretRef"] = []map[string]any{{"name": papCfg.SharedSecretRef}}
+		}
+		if papCfg.EnvConfigMapRef != "" {
+			papEnvFrom["configMapRef"] = []map[string]any{{"name": papCfg.EnvConfigMapRef}}
+		}
+
+		var papIngressValues map[string]any
+		if ingressEnabled(papIng) {
+			papIngressValues = buildIngressValues(papIng, papHostname)
+		} else {
+			papIngressValues = map[string]any{"enabled": false}
+		}
+
+		papValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "Deployment",
+				"deployment": map[string]any{
+					"replicas": 1,
+				},
+			},
+			"image":   buildImageValues(products.PingAuthorizePAP.Image, products.PingAuthorizePAP.Version),
+			"envs":    papEnvs,
+			"ingress": papIngressValues,
+		}
+		if c := buildContainerValues("", "", products.PingAuthorizePAP.Container); len(c) > 0 {
+			papValues["container"] = c
+		}
+		if len(papEnvFrom) > 0 {
+			papValues["envFrom"] = papEnvFrom
+		}
+	}
+
 	values := map[string]any{
 		"global":              globalValues,
 		"pingfederate-admin":  pfAdminValues,
 		"pingfederate-engine": pfEngineValues,
 		"pingdirectory":       pdValues,
 		"pingdataconsole":     pdcValues,
+		"pingaccess-admin":    paAdminValues,
+		"pingaccess-engine":   paEngineValues,
+		"pingauthorize":       pazValues,
+		"pingauthorizepap":    papValues,
 	}
 
-	// Merge PingFederate ValuesOverride
 	var err error
-	values, err = MergeValues(values, spec.PingFederate.ValuesOverride)
-	if err != nil {
-		return nil, fmt.Errorf("merge PingFederate valuesOverride: %w", err)
+
+	// Merge PingFederate ValuesOverride
+	if products.PingFederate != nil {
+		values, err = MergeValues(values, products.PingFederate.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingFederate valuesOverride: %w", err)
+		}
 	}
 
 	// Merge PingDirectory ValuesOverride
-	if spec.PingDirectory != nil {
-		values, err = MergeValues(values, spec.PingDirectory.ValuesOverride)
+	if products.PingDirectory != nil {
+		values, err = MergeValues(values, products.PingDirectory.ValuesOverride)
 		if err != nil {
 			return nil, fmt.Errorf("merge PingDirectory valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingAccess ValuesOverride
+	if products.PingAccess != nil {
+		values, err = MergeValues(values, products.PingAccess.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingAccess valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingAuthorize ValuesOverride
+	if products.PingAuthorize != nil {
+		values, err = MergeValues(values, products.PingAuthorize.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingAuthorize valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingAuthorizePAP ValuesOverride
+	if products.PingAuthorizePAP != nil {
+		values, err = MergeValues(values, products.PingAuthorizePAP.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingAuthorizePAP valuesOverride: %w", err)
 		}
 	}
 
 	return values, nil
 }
 
+// resolveWaitForKey maps a logical Ping product name to the ping-devops Helm sub-chart key.
+func resolveWaitForKey(application string) string {
+	switch strings.ToLower(application) {
+	case "pingdirectory":
+		return "pingdirectory"
+	case "pingfederate", "pingfederateengine":
+		return "pingfederate-engine"
+	case "pingfederateadmin":
+		return "pingfederate-admin"
+	case "pingaccess", "pingaccessengine":
+		return "pingaccess-engine"
+	case "pingaccessadmin":
+		return "pingaccess-admin"
+	case "pingauthorize":
+		return "pingauthorize"
+	case "pingauthorizepap":
+		return "pingauthorizepap"
+	case "pingdataconsole":
+		return "pingdataconsole"
+	default:
+		return strings.ToLower(application)
+	}
+}
+
+// buildContainerValues constructs the container map, merging resource requests with
+// any waitFor dependencies. Returns an empty map when there is nothing to set.
+func buildContainerValues(cpu, memory string, container pingonev1alpha1.ContainerSpec) map[string]any {
+	m := map[string]any{}
+	if cpu != "" || memory != "" {
+		req := map[string]any{}
+		if cpu != "" {
+			req["cpu"] = cpu
+		}
+		if memory != "" {
+			req["memory"] = memory
+		}
+		m["resources"] = map[string]any{"requests": req}
+	}
+	if len(container.WaitFor) > 0 {
+		wf := make(map[string]any, len(container.WaitFor))
+		for _, w := range container.WaitFor {
+			entry := map[string]any{"service": w.Service}
+			if w.TimeoutSeconds > 0 {
+				entry["timeoutSeconds"] = w.TimeoutSeconds
+			}
+			wf[resolveWaitForKey(w.Application)] = entry
+		}
+		m["waitFor"] = wf
+	}
+	return m
+}
+
+// emitServerProfileEnvs writes SERVER_PROFILE_* env vars from a layered profile spec.
+// The base profile maps to SERVER_PROFILE_URL/_BRANCH/_PATH/_PARENT.
+// Each layer maps to SERVER_PROFILE_<UPPER(layer.Name)>_URL etc.
+func emitServerProfileEnvs(envs map[string]any, profile *pingonev1alpha1.ServerProfileSpec, layers []pingonev1alpha1.ServerProfileLayerSpec) {
+	if profile == nil {
+		return
+	}
+	if profile.URL != "" {
+		envs["SERVER_PROFILE_URL"] = profile.URL
+	}
+	if profile.Branch != "" {
+		envs["SERVER_PROFILE_BRANCH"] = profile.Branch
+	}
+	if profile.Path != "" {
+		envs["SERVER_PROFILE_PATH"] = profile.Path
+	}
+	if profile.Parent != "" {
+		envs["SERVER_PROFILE_PARENT"] = profile.Parent
+	}
+	for _, layer := range layers {
+		k := strings.ToUpper(layer.Name)
+		if layer.URL != "" {
+			envs["SERVER_PROFILE_"+k+"_URL"] = layer.URL
+		}
+		if layer.Branch != "" {
+			envs["SERVER_PROFILE_"+k+"_BRANCH"] = layer.Branch
+		}
+		if layer.Path != "" {
+			envs["SERVER_PROFILE_"+k+"_PATH"] = layer.Path
+		}
+		if layer.Parent != "" {
+			envs["SERVER_PROFILE_"+k+"_PARENT"] = layer.Parent
+		}
+	}
+}
+
+// firstNonEmpty returns the first non-empty string from the arguments.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// buildImageValues returns the image map for a Helm sub-chart.
+// The ping-devops chart constructs the final image as {repository}/{name}:{tag}.
+//
+// version may be a bare tag ("13.0.2-edge") or a full reference
+// ("docker.io/pingidentity/pingfederate:13.0.2-edge"). A full reference (contains "/")
+// is split into repository, name, and tag. The explicit repository argument overrides
+// the repository parsed from version when set. Omitting everything lets the chart use
+// its own defaults.
+func buildImageValues(repository, version string) map[string]any {
+	repo, name, tag := repository, "", version
+	if strings.Contains(version, "/") {
+		rest := version
+		if idx := strings.LastIndex(rest, ":"); idx != -1 {
+			tag = rest[idx+1:]
+			rest = rest[:idx]
+		} else {
+			tag = ""
+		}
+		if idx := strings.LastIndex(rest, "/"); idx != -1 {
+			if repository == "" {
+				repo = rest[:idx]
+			}
+			name = rest[idx+1:]
+		} else if repository == "" {
+			repo = rest
+		}
+	}
+	m := map[string]any{}
+	if repo != "" {
+		m["repository"] = repo
+	}
+	if name != "" {
+		m["name"] = name
+	}
+	if tag != "" {
+		m["tag"] = tag
+	}
+	return m
+}
+
+// resolveTLSSecretRef returns explicit if non-empty, otherwise "<tenantID>-<suffix>-tls".
+func resolveTLSSecretRef(explicit, tenantID, suffix string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return fmt.Sprintf("%s-%s-tls", tenantID, suffix)
+}
+
+// ingressEnabled returns true if the resolved ingress should be created.
+func ingressEnabled(ing pingonev1alpha1.IngressSpec) bool {
+	return ing.Enabled != nil && *ing.Enabled
+}
+
 // resolveIngressSpec merges global ingress defaults into a per-component IngressSpec.
 // Component fields take precedence; annotations are merged with global as the base.
+// enabled is inherited from global when the component does not set it explicitly.
 func resolveIngressSpec(global pingonev1alpha1.GlobalIngressSpec, component pingonev1alpha1.IngressSpec) pingonev1alpha1.IngressSpec {
+	if component.Enabled == nil {
+		enabled := global.Enabled
+		component.Enabled = &enabled
+	}
 	if component.ClassName == "" {
 		component.ClassName = global.ClassName
 	}

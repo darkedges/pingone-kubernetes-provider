@@ -55,7 +55,12 @@ rules:
 - apiGroups:
   - pingone.io
   resources:
+  - pingaccesses
+  - pingauthorizepaps
+  - pingauthorizes
+  - pingdirectories
   - pingenvironments
+  - pingfederates
   verbs:
   - create
   - delete
@@ -67,13 +72,23 @@ rules:
 - apiGroups:
   - pingone.io
   resources:
+  - pingaccesses/finalizers
+  - pingauthorizepaps/finalizers
+  - pingauthorizes/finalizers
+  - pingdirectories/finalizers
   - pingenvironments/finalizers
+  - pingfederates/finalizers
   verbs:
   - update
 - apiGroups:
   - pingone.io
   resources:
+  - pingaccesses/status
+  - pingauthorizepaps/status
+  - pingauthorizes/status
+  - pingdirectories/status
   - pingenvironments/status
+  - pingfederates/status
   verbs:
   - get
   - patch

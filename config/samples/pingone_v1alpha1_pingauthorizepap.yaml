@@ -1,0 +1,15 @@
+apiVersion: pingone.io/v1alpha1
+kind: PingAuthorizePAP
+metadata:
+  name: dev-pap
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  ingress:
+    enabled: true
+    tlsSecretRef: paz-pap-tls
+    # hostname auto-derived: paz-pap.dev.example.com
+  config:
+    serverProfile:
+      url: https://github.com/your-org/ping-profiles.git
+      path: pingauthorizepap

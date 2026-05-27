@@ -1,0 +1,14 @@
+apiVersion: pingone.io/v1alpha1
+kind: PingDirectory
+metadata:
+  name: dev-pd
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  replicas: 1
+  storageSize: 8Gi
+  config:
+    serverProfile:
+      url: https://github.com/your-org/ping-profiles.git
+      path: pingdirectory
+    userBaseDN: "dc=example,dc=com"
