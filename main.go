@@ -19,6 +19,13 @@ import (
 	"github.com/darkedges/pingone-operator/controllers"
 )
 
+// Set at build time via -ldflags.
+var (
+	version   = "dev"
+	commit    = "none"
+	buildDate = "unknown"
+)
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -43,6 +50,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	setupLog.Info("starting operator", "version", version, "commit", commit, "buildDate", buildDate)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,

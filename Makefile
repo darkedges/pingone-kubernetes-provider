@@ -24,7 +24,13 @@ GOLANGCI_LINT   := $(TOOLS_DIR)/golangci-lint
 ENVTEST         := $(TOOLS_DIR)/setup-envtest
 
 # Go build flags
-LDFLAGS ?= -s -w
+GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+BUILD_DATE  := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS     ?= -s -w \
+	-X main.version=$(VERSION) \
+	-X main.commit=$(GIT_COMMIT) \
+	-X main.buildDate=$(BUILD_DATE)
 
 ## Default target — build and lint
 .DEFAULT_GOAL := help
@@ -110,7 +116,11 @@ cover: test ## Open test coverage report in the browser
 
 .PHONY: docker-build
 docker-build: ## Build the operator container image (IMG=pingone-operator:latest)
-	docker build --platform $(PLATFORM) -t $(IMG) .
+	docker build --platform $(PLATFORM) \
+	  --build-arg VERSION=$(VERSION) \
+	  --build-arg GIT_COMMIT=$(GIT_COMMIT) \
+	  --build-arg BUILD_DATE=$(BUILD_DATE) \
+	  -t $(IMG) .
 
 # docker-desktop target: build and make the image available to the local
 # Docker Desktop Kubernetes cluster without needing a registry.
