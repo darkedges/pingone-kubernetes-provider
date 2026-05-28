@@ -6,13 +6,21 @@ WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN go mod download
 
+ARG VERSION=dev
+ARG GIT_COMMIT=none
+ARG BUILD_DATE=unknown
+
 COPY api/       api/
 COPY controllers/ controllers/
 COPY internal/  internal/
 COPY main.go    .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags "-s -w" -o manager ./main.go
+    go build -ldflags "-s -w \
+      -X main.version=${VERSION} \
+      -X main.commit=${GIT_COMMIT} \
+      -X main.buildDate=${BUILD_DATE}" \
+    -o manager ./main.go
 
 # Runtime stage
 # Alpine runtime keeps the image small while providing `update-ca-certificates`
