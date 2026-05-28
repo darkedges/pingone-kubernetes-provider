@@ -141,6 +141,14 @@ spec:
               tier:
                 description: 'Tier is one of: development, staging, production.'
                 type: string
+              volumes:
+                description: |-
+                  Volumes defines named pod-level volumes available to all product workloads in this
+                  environment. Each key is the volume name; the value is any valid Kubernetes volume spec
+                  (emptyDir, secret, configMap, hostPath, etc.). Products opt in by listing names under
+                  container.includeVolumes.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
             - tenantId
             - tier

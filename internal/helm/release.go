@@ -809,6 +809,14 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		"pingauthorizepap":    papValues,
 	}
 
+	// Emit top-level volumes map if defined on the environment.
+	if len(env.Volumes.Raw) > 0 {
+		var vols map[string]any
+		if err := json.Unmarshal(env.Volumes.Raw, &vols); err == nil {
+			values["volumes"] = vols
+		}
+	}
+
 	var err error
 
 	// Merge PingFederate ValuesOverride
@@ -902,6 +910,9 @@ func buildContainerValues(cpu, memory string, container pingonev1alpha1.Containe
 			wf[resolveWaitForKey(w.Application)] = entry
 		}
 		m["waitFor"] = wf
+	}
+	if len(container.IncludeVolumes) > 0 {
+		m["includeVolumes"] = container.IncludeVolumes
 	}
 	return m
 }

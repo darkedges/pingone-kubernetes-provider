@@ -141,6 +141,13 @@ spec:
                 description: Container holds container-level settings such as service
                   wait conditions.
                 properties:
+                  includeVolumes:
+                    description: |-
+                      IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
+                      to mount into this product's pod.
+                    items:
+                      type: string
+                    type: array
                   waitFor:
                     description: WaitFor is a list of services this container waits
                       for before starting.

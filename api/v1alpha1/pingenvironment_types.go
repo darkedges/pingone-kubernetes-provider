@@ -52,6 +52,9 @@ type WaitForSpec struct {
 type ContainerSpec struct {
 	// WaitFor is a list of services this container waits for before starting.
 	WaitFor []WaitForSpec `json:"waitFor,omitempty"`
+	// IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
+	// to mount into this product's pod.
+	IncludeVolumes []string `json:"includeVolumes,omitempty"`
 }
 
 // ServerProfileSpec defines the base server profile for a container.
@@ -415,6 +418,12 @@ type PingEnvironmentSpec struct {
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
+	// Volumes defines named pod-level volumes available to all product workloads in this
+	// environment. Each key is the volume name; the value is any valid Kubernetes volume spec
+	// (emptyDir, secret, configMap, hostPath, etc.). Products opt in by listing names under
+	// container.includeVolumes.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Volumes runtime.RawExtension `json:"volumes,omitempty"`
 }
 
 // PingEnvironmentStatus defines the observed state of PingEnvironment.
