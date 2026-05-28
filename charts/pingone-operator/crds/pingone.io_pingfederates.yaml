@@ -225,6 +225,11 @@ spec:
                 description: Container holds container-level settings such as service
                   wait conditions.
                 properties:
+                  containerSecurityContext:
+                    description: ContainerSecurityContext overrides the container-level
+                      securityContext for this product.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   includeVolumes:
                     description: |-
                       IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
@@ -232,6 +237,29 @@ spec:
                     items:
                       type: string
                     type: array
+                  resources:
+                    description: |-
+                      Resources overrides the CPU/memory requests and limits for this product's containers.
+                      Takes precedence over the tier-based defaults and PingEnvironment.spec.resources.
+                    properties:
+                      limits:
+                        additionalProperties:
+                          type: string
+                        description: Limits are the maximum resources the container
+                          may use.
+                        type: object
+                      requests:
+                        additionalProperties:
+                          type: string
+                        description: Requests are the minimum resources the container
+                          requires.
+                        type: object
+                    type: object
+                  securityContext:
+                    description: SecurityContext overrides the pod-level securityContext
+                      for this product's workload.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   waitFor:
                     description: WaitFor is a list of services this container waits
                       for before starting.

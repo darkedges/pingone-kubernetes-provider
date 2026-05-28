@@ -192,6 +192,31 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		},
 	}
 
+	// Vault — global.vault
+	if v := rawToMap(env.Vault); v != nil {
+		globalValues["vault"] = v
+	}
+
+	// Global workload securityContext and container securityContext
+	// → global.workload.securityContext / global.workload.container.securityContext
+	globalWorkload := map[string]any{}
+	if sc := rawToMap(env.SecurityContext); sc != nil {
+		globalWorkload["securityContext"] = sc
+	}
+	if csc := rawToMap(env.ContainerSecurityContext); csc != nil {
+		globalWorkload["container"] = map[string]any{"securityContext": csc}
+	}
+	if len(globalWorkload) > 0 {
+		globalValues["workload"] = globalWorkload
+	}
+
+	// Global resources — global.container.resources
+	if env.Resources != nil {
+		globalValues["container"] = map[string]any{
+			"resources": buildResourcesMap(env.Resources),
+		}
+	}
+
 	// Build PingFederate sections
 	var pfAdminValues, pfEngineValues map[string]any
 	if products.PingFederate == nil {
@@ -362,6 +387,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if len(pfEnvFrom) > 0 {
 			pfEngineValues["envFrom"] = pfEnvFrom
 		}
+		applyWorkloadSecurityContext(pfAdminValues, products.PingFederate.Container.SecurityContext)
+		applyWorkloadSecurityContext(pfEngineValues, products.PingFederate.Container.SecurityContext)
 	} // end PingFederate
 
 	// Assemble pingdirectory section
@@ -473,6 +500,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if len(pdEnvFrom) > 0 {
 			pdValues["envFrom"] = pdEnvFrom
 		}
+		applyWorkloadSecurityContext(pdValues, products.PingDirectory.Container.SecurityContext)
 	}
 
 	// Assemble pingdataconsole section.
@@ -625,6 +653,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if len(paEnvFrom) > 0 {
 			paEngineValues["envFrom"] = paEnvFrom
 		}
+		applyWorkloadSecurityContext(paAdminValues, products.PingAccess.Container.SecurityContext)
+		applyWorkloadSecurityContext(paEngineValues, products.PingAccess.Container.SecurityContext)
 	}
 
 	// Assemble pingauthorize section
@@ -726,6 +756,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if len(pazEnvFrom) > 0 {
 			pazValues["envFrom"] = pazEnvFrom
 		}
+		applyWorkloadSecurityContext(pazValues, products.PingAuthorize.Container.SecurityContext)
 	}
 
 	// Assemble pingauthorizepap section
@@ -795,6 +826,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if len(papEnvFrom) > 0 {
 			papValues["envFrom"] = papEnvFrom
 		}
+		applyWorkloadSecurityContext(papValues, products.PingAuthorizePAP.Container.SecurityContext)
 	}
 
 	values := map[string]any{
@@ -888,9 +920,12 @@ func resolveWaitForKey(application string) string {
 
 // buildContainerValues constructs the container map, merging resource requests with
 // any waitFor dependencies. Returns an empty map when there is nothing to set.
+// Per-product resources and container-level securityContext override the tier defaults.
 func buildContainerValues(cpu, memory string, container pingonev1alpha1.ContainerSpec) map[string]any {
 	m := map[string]any{}
-	if cpu != "" || memory != "" {
+	if container.Resources != nil {
+		m["resources"] = buildResourcesMap(container.Resources)
+	} else if cpu != "" || memory != "" {
 		req := map[string]any{}
 		if cpu != "" {
 			req["cpu"] = cpu
@@ -914,7 +949,56 @@ func buildContainerValues(cpu, memory string, container pingonev1alpha1.Containe
 	if len(container.IncludeVolumes) > 0 {
 		m["includeVolumes"] = container.IncludeVolumes
 	}
+	if csc := rawToMap(container.ContainerSecurityContext); csc != nil {
+		m["securityContext"] = csc
+	}
 	return m
+}
+
+// buildResourcesMap converts a ResourceRequirementsSpec into the Helm resources map.
+func buildResourcesMap(r *pingonev1alpha1.ResourceRequirementsSpec) map[string]any {
+	m := map[string]any{}
+	if len(r.Requests) > 0 {
+		req := make(map[string]any, len(r.Requests))
+		for k, v := range r.Requests {
+			req[k] = v
+		}
+		m["requests"] = req
+	}
+	if len(r.Limits) > 0 {
+		lim := make(map[string]any, len(r.Limits))
+		for k, v := range r.Limits {
+			lim[k] = v
+		}
+		m["limits"] = lim
+	}
+	return m
+}
+
+// rawToMap unmarshals a RawExtension into a map. Returns nil on failure or empty input.
+func rawToMap(r *runtime.RawExtension) map[string]any {
+	if r == nil || len(r.Raw) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(r.Raw, &m); err != nil {
+		return nil
+	}
+	return m
+}
+
+// applyWorkloadSecurityContext merges a pod-level securityContext into a product's workload map.
+func applyWorkloadSecurityContext(productValues map[string]any, sc *runtime.RawExtension) {
+	m := rawToMap(sc)
+	if m == nil {
+		return
+	}
+	wl, ok := productValues["workload"].(map[string]any)
+	if !ok {
+		wl = map[string]any{}
+	}
+	wl["securityContext"] = m
+	productValues["workload"] = wl
 }
 
 // emitServerProfileEnvs writes SERVER_PROFILE_* env vars from a layered profile spec.

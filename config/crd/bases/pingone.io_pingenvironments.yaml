@@ -52,6 +52,12 @@ spec:
           spec:
             description: PingEnvironmentSpec defines the desired state of PingEnvironment.
             properties:
+              containerSecurityContext:
+                description: |-
+                  ContainerSecurityContext sets the container-level securityContext for all product workloads.
+                  Per-product container.containerSecurityContext overrides this.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               domain:
                 description: |-
                   Domain is the base DNS domain for this environment. Component hostnames are derived
@@ -130,6 +136,31 @@ spec:
                       chart's default tag.
                     type: string
                 type: object
+              resources:
+                description: |-
+                  Resources sets default CPU/memory requests and limits for all product containers.
+                  Per-product container.resources overrides this. Both are overridden by tier defaults
+                  when neither is set.
+                properties:
+                  limits:
+                    additionalProperties:
+                      type: string
+                    description: Limits are the maximum resources the container may
+                      use.
+                    type: object
+                  requests:
+                    additionalProperties:
+                      type: string
+                    description: Requests are the minimum resources the container
+                      requires.
+                    type: object
+                type: object
+              securityContext:
+                description: |-
+                  SecurityContext sets the pod-level securityContext for all product workloads.
+                  Per-product container.securityContext overrides this.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               targetNamespace:
                 description: TargetNamespace is the namespace to deploy into; defaults
                   to metadata.namespace.
@@ -141,6 +172,12 @@ spec:
               tier:
                 description: 'Tier is one of: development, staging, production.'
                 type: string
+              vault:
+                description: |-
+                  Vault configures HashiCorp Vault Agent injection for all products in this environment.
+                  Maps to global.vault in the ping-devops Helm chart.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               volumes:
                 description: |-
                   Volumes defines named pod-level volumes available to all product workloads in this

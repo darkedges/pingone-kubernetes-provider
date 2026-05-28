@@ -48,6 +48,14 @@ type WaitForSpec struct {
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
+// ResourceRequirementsSpec defines CPU and memory requests and limits.
+type ResourceRequirementsSpec struct {
+	// Limits are the maximum resources the container may use.
+	Limits map[string]string `json:"limits,omitempty"`
+	// Requests are the minimum resources the container requires.
+	Requests map[string]string `json:"requests,omitempty"`
+}
+
 // ContainerSpec holds container-level settings that apply on top of the chart defaults.
 type ContainerSpec struct {
 	// WaitFor is a list of services this container waits for before starting.
@@ -55,6 +63,15 @@ type ContainerSpec struct {
 	// IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
 	// to mount into this product's pod.
 	IncludeVolumes []string `json:"includeVolumes,omitempty"`
+	// Resources overrides the CPU/memory requests and limits for this product's containers.
+	// Takes precedence over the tier-based defaults and PingEnvironment.spec.resources.
+	Resources *ResourceRequirementsSpec `json:"resources,omitempty"`
+	// SecurityContext overrides the pod-level securityContext for this product's workload.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	SecurityContext *runtime.RawExtension `json:"securityContext,omitempty"`
+	// ContainerSecurityContext overrides the container-level securityContext for this product.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ContainerSecurityContext *runtime.RawExtension `json:"containerSecurityContext,omitempty"`
 }
 
 // ServerProfileSpec defines the base server profile for a container.
@@ -418,6 +435,22 @@ type PingEnvironmentSpec struct {
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
+	// Vault configures HashiCorp Vault Agent injection for all products in this environment.
+	// Maps to global.vault in the ping-devops Helm chart.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Vault *runtime.RawExtension `json:"vault,omitempty"`
+	// SecurityContext sets the pod-level securityContext for all product workloads.
+	// Per-product container.securityContext overrides this.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	SecurityContext *runtime.RawExtension `json:"securityContext,omitempty"`
+	// ContainerSecurityContext sets the container-level securityContext for all product workloads.
+	// Per-product container.containerSecurityContext overrides this.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ContainerSecurityContext *runtime.RawExtension `json:"containerSecurityContext,omitempty"`
+	// Resources sets default CPU/memory requests and limits for all product containers.
+	// Per-product container.resources overrides this. Both are overridden by tier defaults
+	// when neither is set.
+	Resources *ResourceRequirementsSpec `json:"resources,omitempty"`
 	// Volumes defines named pod-level volumes available to all product workloads in this
 	// environment. Each key is the volume name; the value is any valid Kubernetes volume spec
 	// (emptyDir, secret, configMap, hostPath, etc.). Products opt in by listing names under
