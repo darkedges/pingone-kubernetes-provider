@@ -52,6 +52,16 @@ func (in *ContainerSpec) DeepCopyInto(out *ContainerSpec) {
 		*out = new(runtime.RawExtension)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Volumes != nil {
+		in, out := &in.Volumes, &out.Volumes
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecretVolumes != nil {
 		in, out := &in.SecretVolumes, &out.SecretVolumes
 		*out = make(map[string]MountedVolumeSpec, len(*in))

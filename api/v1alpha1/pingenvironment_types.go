@@ -85,13 +85,25 @@ type ContainerSpec struct {
 	// ContainerSecurityContext overrides the container-level securityContext for this product.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ContainerSecurityContext *runtime.RawExtension `json:"containerSecurityContext,omitempty"`
-	// SecretVolumes mounts Kubernetes secrets into this product's container.
-	// Merged with any SecretVolumes defined on the PingEnvironment, with per-product
-	// entries taking precedence on name collision.
+	// Volumes is a list of additional pod-level volumes for this product's workload.
+	// Each element is a standard Kubernetes volume spec (name, configMap, secret, emptyDir, etc.).
+	// These are appended to any volumes generated from SecretVolumes/ConfigMapVolumes on the
+	// PingEnvironment. Maps directly to the ping-devops sub-chart volumes array.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Volumes *runtime.RawExtension `json:"volumes,omitempty"`
+	// VolumeMounts is a list of additional container volumeMounts for this product's workload.
+	// Each element is a standard Kubernetes volumeMount spec (name, mountPath, subPath, etc.).
+	// These are appended to any mounts generated from SecretVolumes/ConfigMapVolumes on the
+	// PingEnvironment. Maps directly to the ping-devops sub-chart volumeMounts array.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	VolumeMounts *runtime.RawExtension `json:"volumeMounts,omitempty"`
+	// SecretVolumes is a convenience shorthand for mounting Kubernetes secrets.
+	// Use mountPath to mount the entire secret as a directory, or items to mount individual keys.
+	// Merged with any SecretVolumes defined on the PingEnvironment.
 	SecretVolumes map[string]MountedVolumeSpec `json:"secretVolumes,omitempty"`
-	// ConfigMapVolumes mounts Kubernetes ConfigMaps into this product's container.
-	// Merged with any ConfigMapVolumes defined on the PingEnvironment, with per-product
-	// entries taking precedence on name collision.
+	// ConfigMapVolumes is a convenience shorthand for mounting Kubernetes ConfigMaps.
+	// Use mountPath to mount the entire ConfigMap as a directory, or items to mount individual keys.
+	// Merged with any ConfigMapVolumes defined on the PingEnvironment.
 	ConfigMapVolumes map[string]MountedVolumeSpec `json:"configMapVolumes,omitempty"`
 }
 
