@@ -48,6 +48,15 @@ type WaitForSpec struct {
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
+// SecretVolumeSpec maps Kubernetes secret keys to container mount paths.
+// The secret name is the key in the parent SecretVolumes map and must match
+// a Kubernetes Secret in the same namespace as the product.
+type SecretVolumeSpec struct {
+	// Items maps secret key names to their absolute mount paths inside the container.
+	// Example: {"token": "/secrets/github/token"}
+	Items map[string]string `json:"items,omitempty"`
+}
+
 // ResourceRequirementsSpec defines CPU and memory requests and limits.
 type ResourceRequirementsSpec struct {
 	// Limits are the maximum resources the container may use.
@@ -72,6 +81,10 @@ type ContainerSpec struct {
 	// ContainerSecurityContext overrides the container-level securityContext for this product.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ContainerSecurityContext *runtime.RawExtension `json:"containerSecurityContext,omitempty"`
+	// SecretVolumes mounts Kubernetes secrets into this product's container.
+	// Merged with any SecretVolumes defined on the PingEnvironment, with per-product
+	// entries taking precedence on name collision.
+	SecretVolumes map[string]SecretVolumeSpec `json:"secretVolumes,omitempty"`
 }
 
 // ServerProfileSpec defines the base server profile for a container.
@@ -454,9 +467,16 @@ type PingEnvironmentSpec struct {
 	// Volumes defines named pod-level volumes available to all product workloads in this
 	// environment. Each key is the volume name; the value is any valid Kubernetes volume spec
 	// (emptyDir, secret, configMap, hostPath, etc.). Products opt in by listing names under
-	// container.includeVolumes.
+	// container.includeVolumes, or use IncludeVolumes to mount them in every product.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Volumes runtime.RawExtension `json:"volumes,omitempty"`
+	// IncludeVolumes lists volume names (from spec.volumes) to mount into every product's
+	// workload in this environment. Maps to global.includeVolumes in the ping-devops chart.
+	IncludeVolumes []string `json:"includeVolumes,omitempty"`
+	// SecretVolumes mounts Kubernetes secrets into every product container in this environment.
+	// Each key is the Kubernetes Secret name; the value maps secret keys to mount paths.
+	// Generates both the pod-level volume and the container volumeMount automatically.
+	SecretVolumes map[string]SecretVolumeSpec `json:"secretVolumes,omitempty"`
 }
 
 // PingEnvironmentStatus defines the observed state of PingEnvironment.

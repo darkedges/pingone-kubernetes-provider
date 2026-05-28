@@ -389,6 +389,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(pfAdminValues, products.PingFederate.Container.SecurityContext)
 		applyWorkloadSecurityContext(pfEngineValues, products.PingFederate.Container.SecurityContext)
+		applySecretVolumes(pfAdminValues, env.SecretVolumes, products.PingFederate.Container.SecretVolumes)
+		applySecretVolumes(pfEngineValues, env.SecretVolumes, products.PingFederate.Container.SecretVolumes)
 	} // end PingFederate
 
 	// Assemble pingdirectory section
@@ -501,6 +503,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pdValues["envFrom"] = pdEnvFrom
 		}
 		applyWorkloadSecurityContext(pdValues, products.PingDirectory.Container.SecurityContext)
+		applySecretVolumes(pdValues, env.SecretVolumes, products.PingDirectory.Container.SecretVolumes)
 	}
 
 	// Assemble pingdataconsole section.
@@ -655,6 +658,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(paAdminValues, products.PingAccess.Container.SecurityContext)
 		applyWorkloadSecurityContext(paEngineValues, products.PingAccess.Container.SecurityContext)
+		applySecretVolumes(paAdminValues, env.SecretVolumes, products.PingAccess.Container.SecretVolumes)
+		applySecretVolumes(paEngineValues, env.SecretVolumes, products.PingAccess.Container.SecretVolumes)
 	}
 
 	// Assemble pingauthorize section
@@ -757,6 +762,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pazValues["envFrom"] = pazEnvFrom
 		}
 		applyWorkloadSecurityContext(pazValues, products.PingAuthorize.Container.SecurityContext)
+		applySecretVolumes(pazValues, env.SecretVolumes, products.PingAuthorize.Container.SecretVolumes)
 	}
 
 	// Assemble pingauthorizepap section
@@ -827,6 +833,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			papValues["envFrom"] = papEnvFrom
 		}
 		applyWorkloadSecurityContext(papValues, products.PingAuthorizePAP.Container.SecurityContext)
+		applySecretVolumes(papValues, env.SecretVolumes, products.PingAuthorizePAP.Container.SecretVolumes)
 	}
 
 	values := map[string]any{
@@ -847,6 +854,11 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if err := json.Unmarshal(env.Volumes.Raw, &vols); err == nil {
 			values["volumes"] = vols
 		}
+	}
+
+	// Emit global.includeVolumes — mounts named volumes into every product's workload.
+	if len(env.IncludeVolumes) > 0 {
+		globalValues["includeVolumes"] = env.IncludeVolumes
 	}
 
 	var err error
@@ -985,6 +997,29 @@ func rawToMap(r *runtime.RawExtension) map[string]any {
 		return nil
 	}
 	return m
+}
+
+// applySecretVolumes merges global and per-product secretVolumes into a product's values map.
+// Per-product entries take precedence over global ones on name collision.
+func applySecretVolumes(productValues map[string]any, global, perProduct map[string]pingonev1alpha1.SecretVolumeSpec) {
+	merged := make(map[string]any, len(global)+len(perProduct))
+	for name, sv := range global {
+		merged[name] = buildSecretVolumeMap(sv)
+	}
+	for name, sv := range perProduct {
+		merged[name] = buildSecretVolumeMap(sv)
+	}
+	if len(merged) > 0 {
+		productValues["secretVolumes"] = merged
+	}
+}
+
+func buildSecretVolumeMap(sv pingonev1alpha1.SecretVolumeSpec) map[string]any {
+	items := make(map[string]any, len(sv.Items))
+	for k, v := range sv.Items {
+		items[k] = v
+	}
+	return map[string]any{"items": items}
 }
 
 // applyWorkloadSecurityContext merges a pod-level securityContext into a product's workload map.
