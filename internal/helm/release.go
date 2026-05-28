@@ -391,6 +391,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		applyWorkloadSecurityContext(pfEngineValues, products.PingFederate.Container.SecurityContext)
 		applySecretVolumes(pfAdminValues, env.SecretVolumes, products.PingFederate.Container.SecretVolumes)
 		applySecretVolumes(pfEngineValues, env.SecretVolumes, products.PingFederate.Container.SecretVolumes)
+		applyConfigMapVolumes(pfAdminValues, env.ConfigMapVolumes, products.PingFederate.Container.ConfigMapVolumes)
+		applyConfigMapVolumes(pfEngineValues, env.ConfigMapVolumes, products.PingFederate.Container.ConfigMapVolumes)
 	} // end PingFederate
 
 	// Assemble pingdirectory section
@@ -504,6 +506,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(pdValues, products.PingDirectory.Container.SecurityContext)
 		applySecretVolumes(pdValues, env.SecretVolumes, products.PingDirectory.Container.SecretVolumes)
+		applyConfigMapVolumes(pdValues, env.ConfigMapVolumes, products.PingDirectory.Container.ConfigMapVolumes)
 	}
 
 	// Assemble pingdataconsole section.
@@ -660,6 +663,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		applyWorkloadSecurityContext(paEngineValues, products.PingAccess.Container.SecurityContext)
 		applySecretVolumes(paAdminValues, env.SecretVolumes, products.PingAccess.Container.SecretVolumes)
 		applySecretVolumes(paEngineValues, env.SecretVolumes, products.PingAccess.Container.SecretVolumes)
+		applyConfigMapVolumes(paAdminValues, env.ConfigMapVolumes, products.PingAccess.Container.ConfigMapVolumes)
+		applyConfigMapVolumes(paEngineValues, env.ConfigMapVolumes, products.PingAccess.Container.ConfigMapVolumes)
 	}
 
 	// Assemble pingauthorize section
@@ -763,6 +768,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(pazValues, products.PingAuthorize.Container.SecurityContext)
 		applySecretVolumes(pazValues, env.SecretVolumes, products.PingAuthorize.Container.SecretVolumes)
+		applyConfigMapVolumes(pazValues, env.ConfigMapVolumes, products.PingAuthorize.Container.ConfigMapVolumes)
 	}
 
 	// Assemble pingauthorizepap section
@@ -834,6 +840,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(papValues, products.PingAuthorizePAP.Container.SecurityContext)
 		applySecretVolumes(papValues, env.SecretVolumes, products.PingAuthorizePAP.Container.SecretVolumes)
+		applyConfigMapVolumes(papValues, env.ConfigMapVolumes, products.PingAuthorizePAP.Container.ConfigMapVolumes)
 	}
 
 	values := map[string]any{
@@ -1001,25 +1008,88 @@ func rawToMap(r *runtime.RawExtension) map[string]any {
 
 // applySecretVolumes merges global and per-product secretVolumes into a product's values map.
 // Per-product entries take precedence over global ones on name collision.
-func applySecretVolumes(productValues map[string]any, global, perProduct map[string]pingonev1alpha1.SecretVolumeSpec) {
-	merged := make(map[string]any, len(global)+len(perProduct))
+// MountPath mode: adds pod-level volumes + container volumeMounts arrays (Kubernetes raw format).
+// Items mode: uses the ping-devops secretVolumes mechanism (per-key subPath mounts).
+func applySecretVolumes(productValues map[string]any, global, perProduct map[string]pingonev1alpha1.MountedVolumeSpec) {
+	merged := make(map[string]pingonev1alpha1.MountedVolumeSpec, len(global)+len(perProduct))
 	for name, sv := range global {
-		merged[name] = buildSecretVolumeMap(sv)
+		merged[name] = sv
 	}
 	for name, sv := range perProduct {
-		merged[name] = buildSecretVolumeMap(sv)
+		merged[name] = sv
 	}
-	if len(merged) > 0 {
-		productValues["secretVolumes"] = merged
+
+	svMap := map[string]any{}
+	for name, sv := range merged {
+		if sv.MountPath != "" {
+			appendPodVolume(productValues, map[string]any{
+				"name":   name,
+				"secret": map[string]any{"secretName": name},
+			})
+			appendVolumeMount(productValues, map[string]any{
+				"name":      name,
+				"mountPath": sv.MountPath,
+			})
+		} else if len(sv.Items) > 0 {
+			items := make(map[string]any, len(sv.Items))
+			for k, v := range sv.Items {
+				items[k] = v
+			}
+			svMap[name] = map[string]any{"items": items}
+		}
+	}
+	if len(svMap) > 0 {
+		productValues["secretVolumes"] = svMap
 	}
 }
 
-func buildSecretVolumeMap(sv pingonev1alpha1.SecretVolumeSpec) map[string]any {
-	items := make(map[string]any, len(sv.Items))
-	for k, v := range sv.Items {
-		items[k] = v
+// applyConfigMapVolumes merges global and per-product configMapVolumes into a product's values map.
+// Per-product entries take precedence over global ones on name collision.
+// MountPath mode: adds pod-level volumes + container volumeMounts arrays (Kubernetes raw format).
+// Items mode: uses the ping-devops configMapVolumes mechanism (per-key subPath mounts).
+func applyConfigMapVolumes(productValues map[string]any, global, perProduct map[string]pingonev1alpha1.MountedVolumeSpec) {
+	merged := make(map[string]pingonev1alpha1.MountedVolumeSpec, len(global)+len(perProduct))
+	for name, sv := range global {
+		merged[name] = sv
 	}
-	return map[string]any{"items": items}
+	for name, sv := range perProduct {
+		merged[name] = sv
+	}
+
+	cmMap := map[string]any{}
+	for name, sv := range merged {
+		if sv.MountPath != "" {
+			appendPodVolume(productValues, map[string]any{
+				"name":      name,
+				"configMap": map[string]any{"name": name},
+			})
+			appendVolumeMount(productValues, map[string]any{
+				"name":      name,
+				"mountPath": sv.MountPath,
+			})
+		} else if len(sv.Items) > 0 {
+			items := make(map[string]any, len(sv.Items))
+			for k, v := range sv.Items {
+				items[k] = v
+			}
+			cmMap[name] = map[string]any{"items": items}
+		}
+	}
+	if len(cmMap) > 0 {
+		productValues["configMapVolumes"] = cmMap
+	}
+}
+
+// appendPodVolume appends a pod-level volume entry to productValues["volumes"].
+func appendPodVolume(productValues map[string]any, vol map[string]any) {
+	existing, _ := productValues["volumes"].([]map[string]any)
+	productValues["volumes"] = append(existing, vol)
+}
+
+// appendVolumeMount appends a container volumeMount entry to productValues["volumeMounts"].
+func appendVolumeMount(productValues map[string]any, mount map[string]any) {
+	existing, _ := productValues["volumeMounts"].([]map[string]any)
+	productValues["volumeMounts"] = append(existing, mount)
 }
 
 // applyWorkloadSecurityContext merges a pod-level securityContext into a product's workload map.

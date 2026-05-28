@@ -4,7 +4,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // DeepCopyInto copies all properties of this object into another object of the same type.
@@ -192,6 +192,46 @@ func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 		in, out := &in.PingDataConsole, &out.PingDataConsole
 		*out = new(PingDataConsoleSpec)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Vault != nil {
+		in, out := &in.Vault, &out.Vault
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ContainerSecurityContext != nil {
+		in, out := &in.ContainerSecurityContext, &out.ContainerSecurityContext
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = new(ResourceRequirementsSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	in.Volumes.DeepCopyInto(&out.Volumes)
+	if in.IncludeVolumes != nil {
+		in, out := &in.IncludeVolumes, &out.IncludeVolumes
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.SecretVolumes != nil {
+		in, out := &in.SecretVolumes, &out.SecretVolumes
+		*out = make(map[string]MountedVolumeSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
+		}
+	}
+	if in.ConfigMapVolumes != nil {
+		in, out := &in.ConfigMapVolumes, &out.ConfigMapVolumes
+		*out = make(map[string]MountedVolumeSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
+		}
 	}
 }
 

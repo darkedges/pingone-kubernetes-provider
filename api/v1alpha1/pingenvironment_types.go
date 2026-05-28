@@ -48,12 +48,16 @@ type WaitForSpec struct {
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
-// SecretVolumeSpec maps Kubernetes secret keys to container mount paths.
-// The secret name is the key in the parent SecretVolumes map and must match
-// a Kubernetes Secret in the same namespace as the product.
-type SecretVolumeSpec struct {
-	// Items maps secret key names to their absolute mount paths inside the container.
-	// Example: {"token": "/secrets/github/token"}
+// MountedVolumeSpec configures how a Kubernetes Secret or ConfigMap is mounted
+// into a product container. Use MountPath to mount all keys as a directory, or
+// Items to selectively mount individual keys to specific file paths.
+type MountedVolumeSpec struct {
+	// MountPath mounts the entire Secret or ConfigMap as a directory at this path.
+	// Every key becomes a file in that directory. Cannot be combined with Items.
+	MountPath string `json:"mountPath,omitempty"`
+	// Items selectively mounts individual keys to absolute file paths in the container.
+	// Each entry maps a key name to its full mount path (e.g. "token": "/secrets/github/token").
+	// Cannot be combined with MountPath.
 	Items map[string]string `json:"items,omitempty"`
 }
 
@@ -84,7 +88,11 @@ type ContainerSpec struct {
 	// SecretVolumes mounts Kubernetes secrets into this product's container.
 	// Merged with any SecretVolumes defined on the PingEnvironment, with per-product
 	// entries taking precedence on name collision.
-	SecretVolumes map[string]SecretVolumeSpec `json:"secretVolumes,omitempty"`
+	SecretVolumes map[string]MountedVolumeSpec `json:"secretVolumes,omitempty"`
+	// ConfigMapVolumes mounts Kubernetes ConfigMaps into this product's container.
+	// Merged with any ConfigMapVolumes defined on the PingEnvironment, with per-product
+	// entries taking precedence on name collision.
+	ConfigMapVolumes map[string]MountedVolumeSpec `json:"configMapVolumes,omitempty"`
 }
 
 // ServerProfileSpec defines the base server profile for a container.
@@ -474,9 +482,13 @@ type PingEnvironmentSpec struct {
 	// workload in this environment. Maps to global.includeVolumes in the ping-devops chart.
 	IncludeVolumes []string `json:"includeVolumes,omitempty"`
 	// SecretVolumes mounts Kubernetes secrets into every product container in this environment.
-	// Each key is the Kubernetes Secret name; the value maps secret keys to mount paths.
-	// Generates both the pod-level volume and the container volumeMount automatically.
-	SecretVolumes map[string]SecretVolumeSpec `json:"secretVolumes,omitempty"`
+	// Each key is the Kubernetes Secret name; the value configures the mount.
+	// Use MountPath to mount the entire secret as a directory, or Items to mount individual keys.
+	SecretVolumes map[string]MountedVolumeSpec `json:"secretVolumes,omitempty"`
+	// ConfigMapVolumes mounts Kubernetes ConfigMaps into every product container in this environment.
+	// Each key is the Kubernetes ConfigMap name; the value configures the mount.
+	// Use MountPath to mount the entire ConfigMap as a directory, or Items to mount individual keys.
+	ConfigMapVolumes map[string]MountedVolumeSpec `json:"configMapVolumes,omitempty"`
 }
 
 // PingEnvironmentStatus defines the observed state of PingEnvironment.
