@@ -144,6 +144,10 @@ docker-buildx: ## Build and push a multi-arch image via buildx
 #  Helm / OCI                                                                  #
 # --------------------------------------------------------------------------- #
 
+.PHONY: helm-sync-crds
+helm-sync-crds: manifests ## Copy generated CRD manifests into the Helm chart crds/ directory
+	cp config/crd/bases/*.yaml $(HELM_CHART_DIR)/crds/
+
 .PHONY: helm-lint
 helm-lint: ## Lint the Helm chart
 	helm lint $(HELM_CHART_DIR)
