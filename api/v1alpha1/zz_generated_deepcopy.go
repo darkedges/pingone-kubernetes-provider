@@ -219,20 +219,6 @@ func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.SecretVolumes != nil {
-		in, out := &in.SecretVolumes, &out.SecretVolumes
-		*out = make(map[string]MountedVolumeSpec, len(*in))
-		for key, val := range *in {
-			(*out)[key] = *val.DeepCopy()
-		}
-	}
-	if in.ConfigMapVolumes != nil {
-		in, out := &in.ConfigMapVolumes, &out.ConfigMapVolumes
-		*out = make(map[string]MountedVolumeSpec, len(*in))
-		for key, val := range *in {
-			(*out)[key] = *val.DeepCopy()
-		}
-	}
 }
 
 // DeepCopy creates a deep copy of PingEnvironmentSpec.
