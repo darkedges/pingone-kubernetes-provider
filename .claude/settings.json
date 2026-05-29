@@ -1,4 +1,14 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(wait)",
+      "Bash(git commit -m ' *)",
+      "Bash(mkdir -p /tmp/helm-cache && helm pull ping-devops --repo https://helm.pingidentity.com/ --version 0.12.2 --destination /tmp/helm-cache/ 2>&1 && ls /tmp/helm-cache/)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

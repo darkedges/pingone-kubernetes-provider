@@ -1017,58 +1017,42 @@ func rawToMap(r *runtime.RawExtension) map[string]any {
 	return m
 }
 
-// applyRawVolumes translates the user-facing Kubernetes array format (separate volumes +
-// volumeMounts lists) into the ping-devops volumes map format that the chart expects.
-//
-// ping-devops volumes map: {volName: {mountPath: "/path", <volume-type-spec>}}
-// The chart generates both the pod volume and container volumeMount from each entry.
+// applyRawVolumes passes Kubernetes-native volume/volumeMount arrays directly to the
+// ping-devops chart.  The chart renders $v.volumes and $v.volumeMounts with toYaml,
+// so standard Kubernetes array format is the expected input.
 func applyRawVolumes(productValues map[string]any, container pingonev1alpha1.ContainerSpec) {
-	if len(container.Volumes) == 0 {
-		return
-	}
-
-	// Build name → mountPath lookup from the volumeMounts list.
-	mountPaths := make(map[string]string, len(container.VolumeMounts))
-	for _, raw := range container.VolumeMounts {
-		if len(raw.Raw) == 0 {
-			continue
+	if len(container.Volumes) > 0 {
+		vols := make([]any, 0, len(container.Volumes))
+		for _, raw := range container.Volumes {
+			if len(raw.Raw) == 0 {
+				continue
+			}
+			var v any
+			if err := json.Unmarshal(raw.Raw, &v); err != nil {
+				continue
+			}
+			vols = append(vols, v)
 		}
-		var m map[string]any
-		if err := json.Unmarshal(raw.Raw, &m); err != nil {
-			continue
-		}
-		name, _ := m["name"].(string)
-		mountPath, _ := m["mountPath"].(string)
-		if name != "" {
-			mountPaths[name] = mountPath
+		if len(vols) > 0 {
+			productValues["volumes"] = vols
 		}
 	}
 
-	// Merge into any existing ping-devops volumes map on the product values.
-	volMap, _ := productValues["volumes"].(map[string]any)
-	if volMap == nil {
-		volMap = make(map[string]any)
-	}
-	for _, raw := range container.Volumes {
-		if len(raw.Raw) == 0 {
-			continue
+	if len(container.VolumeMounts) > 0 {
+		mounts := make([]any, 0, len(container.VolumeMounts))
+		for _, raw := range container.VolumeMounts {
+			if len(raw.Raw) == 0 {
+				continue
+			}
+			var v any
+			if err := json.Unmarshal(raw.Raw, &v); err != nil {
+				continue
+			}
+			mounts = append(mounts, v)
 		}
-		var vol map[string]any
-		if err := json.Unmarshal(raw.Raw, &vol); err != nil {
-			continue
+		if len(mounts) > 0 {
+			productValues["volumeMounts"] = mounts
 		}
-		name, _ := vol["name"].(string)
-		if name == "" {
-			continue
-		}
-		delete(vol, "name") // ping-devops uses the map key as the volume name
-		if mp := mountPaths[name]; mp != "" {
-			vol["mountPath"] = mp
-		}
-		volMap[name] = vol
-	}
-	if len(volMap) > 0 {
-		productValues["volumes"] = volMap
 	}
 }
 
