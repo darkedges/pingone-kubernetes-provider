@@ -76,12 +76,12 @@ type ContainerSpec struct {
 	// Each element is a standard Kubernetes volume spec (name, configMap, secret, emptyDir, etc.).
 	// Maps directly to the ping-devops sub-chart volumes array.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Volumes *runtime.RawExtension `json:"volumes,omitempty"`
+	Volumes []runtime.RawExtension `json:"volumes,omitempty"`
 	// VolumeMounts is a list of additional container volumeMounts for this product's workload.
 	// Each element is a standard Kubernetes volumeMount spec (name, mountPath, subPath, etc.).
 	// Maps directly to the ping-devops sub-chart volumeMounts array.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	VolumeMounts *runtime.RawExtension `json:"volumeMounts,omitempty"`
+	VolumeMounts []runtime.RawExtension `json:"volumeMounts,omitempty"`
 }
 
 // ServerProfileSpec defines the base server profile for a container.

@@ -181,14 +181,20 @@ spec:
                       VolumeMounts is a list of additional container volumeMounts for this product's workload.
                       Each element is a standard Kubernetes volumeMount spec (name, mountPath, subPath, etc.).
                       Maps directly to the ping-devops sub-chart volumeMounts array.
-                    type: object
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
                     x-kubernetes-preserve-unknown-fields: true
                   volumes:
                     description: |-
                       Volumes is a list of additional pod-level volumes for this product's workload.
                       Each element is a standard Kubernetes volume spec (name, configMap, secret, emptyDir, etc.).
                       Maps directly to the ping-devops sub-chart volumes array.
-                    type: object
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
                     x-kubernetes-preserve-unknown-fields: true
                   waitFor:
                     description: WaitFor is a list of services this container waits

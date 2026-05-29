@@ -1002,19 +1002,25 @@ func rawToMap(r *runtime.RawExtension) map[string]any {
 // applyRawVolumes appends raw volumes and volumeMounts from ContainerSpec directly into the
 // product values map. These are passed through verbatim to the ping-devops sub-chart.
 func applyRawVolumes(productValues map[string]any, container pingonev1alpha1.ContainerSpec) {
-	if container.Volumes != nil && len(container.Volumes.Raw) > 0 {
-		var vols []any
-		if err := json.Unmarshal(container.Volumes.Raw, &vols); err == nil && len(vols) > 0 {
-			existing, _ := productValues["volumes"].([]any)
-			productValues["volumes"] = append(existing, vols...)
+	if len(container.Volumes) > 0 {
+		existing, _ := productValues["volumes"].([]any)
+		for _, v := range container.Volumes {
+			var item any
+			if err := json.Unmarshal(v.Raw, &item); err == nil {
+				existing = append(existing, item)
+			}
 		}
+		productValues["volumes"] = existing
 	}
-	if container.VolumeMounts != nil && len(container.VolumeMounts.Raw) > 0 {
-		var mounts []any
-		if err := json.Unmarshal(container.VolumeMounts.Raw, &mounts); err == nil && len(mounts) > 0 {
-			existing, _ := productValues["volumeMounts"].([]any)
-			productValues["volumeMounts"] = append(existing, mounts...)
+	if len(container.VolumeMounts) > 0 {
+		existing, _ := productValues["volumeMounts"].([]any)
+		for _, v := range container.VolumeMounts {
+			var item any
+			if err := json.Unmarshal(v.Raw, &item); err == nil {
+				existing = append(existing, item)
+			}
 		}
+		productValues["volumeMounts"] = existing
 	}
 }
 
