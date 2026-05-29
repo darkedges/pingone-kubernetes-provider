@@ -261,14 +261,22 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pfEnvs["PF_CONSOLE_TITLE"] = pfCfg.ConsoleTitle
 		}
 
-		// Operational mode
-		pfEnvs["OPERATIONAL_MODE"] = pfCfg.OperationalMode
-		pfEnvs["CLUSTER_BIND_ADDRESS"] = "NON_LOOPBACK"
+		// Operational mode — only set when explicitly configured; chart defaults to STANDALONE
+		if pfCfg.OperationalMode != "" {
+			pfEnvs["OPERATIONAL_MODE"] = pfCfg.OperationalMode
+			pfEnvs["CLUSTER_BIND_ADDRESS"] = "NON_LOOPBACK"
+		}
 
-		// Authentication
-		pfEnvs["PF_CONSOLE_AUTHENTICATION"] = pfCfg.ConsoleAuthentication
-		pfEnvs["PF_ADMIN_API_AUTHENTICATION"] = pfCfg.AdminAPIAuthentication
-		pfEnvs["PF_LDAP_TYPE"] = pfCfg.LDAPType
+		// Authentication — only set when explicitly configured
+		if pfCfg.ConsoleAuthentication != "" {
+			pfEnvs["PF_CONSOLE_AUTHENTICATION"] = pfCfg.ConsoleAuthentication
+		}
+		if pfCfg.AdminAPIAuthentication != "" {
+			pfEnvs["PF_ADMIN_API_AUTHENTICATION"] = pfCfg.AdminAPIAuthentication
+		}
+		if pfCfg.LDAPType != "" {
+			pfEnvs["PF_LDAP_TYPE"] = pfCfg.LDAPType
+		}
 		if pfCfg.LDAPUsername != "" {
 			pfEnvs["PF_LDAP_USERNAME"] = pfCfg.LDAPUsername
 		}
@@ -281,16 +289,22 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pfEnvs["PF_PINGONE_ENV_ID"] = pfCfg.PingOneEnvID
 		}
 
-		// Provisioner
-		pfEnvs["PF_PROVISIONER_MODE"] = pfCfg.ProvisionerMode
-		pfEnvs["PF_PROVISIONER_NODE_ID"] = fmt.Sprintf("%d", pfCfg.ProvisionerNodeID)
-		pfEnvs["PF_PROVISIONER_GRACE_PERIOD"] = "600"
+		// Provisioner — only set when explicitly configured
+		if pfCfg.ProvisionerMode != "" {
+			pfEnvs["PF_PROVISIONER_MODE"] = pfCfg.ProvisionerMode
+		}
+		if pfCfg.ProvisionerNodeID != 0 {
+			pfEnvs["PF_PROVISIONER_NODE_ID"] = fmt.Sprintf("%d", pfCfg.ProvisionerNodeID)
+			pfEnvs["PF_PROVISIONER_GRACE_PERIOD"] = "600"
+		}
 
 		// JVM
 		pfEnvs["JAVA_RAM_PERCENTAGE"] = pfCfg.JavaRAMPercentage
 
-		// HSM
-		pfEnvs["HSM_MODE"] = pfCfg.HSMMode
+		// HSM — only set when explicitly configured
+		if pfCfg.HSMMode != "" {
+			pfEnvs["HSM_MODE"] = pfCfg.HSMMode
+		}
 
 		// Logging
 		pfEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/log/server.log"
@@ -570,10 +584,14 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		paEnvs := map[string]any{
 			"PA_ADMIN_PORT":       fmt.Sprintf("%d", paCfg.AdminPort),
 			"PA_ENGINE_PORT":      fmt.Sprintf("%d", paCfg.EnginePort),
-			"OPERATIONAL_MODE":    paCfg.OperationalMode,
-			"FIPS_MODE_ON":        fmt.Sprintf("%t", paCfg.FIPSModeOn),
 			"JAVA_RAM_PERCENTAGE": paCfg.JavaRAMPercentage,
 			"TAIL_LOG_FILES":      "${SERVER_ROOT_DIR}/log/pingaccess.log",
+		}
+		if paCfg.OperationalMode != "" {
+			paEnvs["OPERATIONAL_MODE"] = paCfg.OperationalMode
+		}
+		if paCfg.FIPSModeOn {
+			paEnvs["FIPS_MODE_ON"] = "true"
 		}
 		emitServerProfileEnvs(paEnvs, paCfg.ServerProfile, paCfg.ServerProfileLayers)
 		if paCfg.AdminPublicHostname != "" {
