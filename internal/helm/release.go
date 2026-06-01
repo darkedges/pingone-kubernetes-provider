@@ -405,6 +405,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		applyWorkloadSecurityContext(pfEngineValues, products.PingFederate.Container.SecurityContext)
 		applyRawVolumes(pfAdminValues, products.PingFederate.Container)
 		applyRawVolumes(pfEngineValues, products.PingFederate.Container)
+		pfSvcAnnotations := resolveServiceAnnotations(env.Services, products.PingFederate.Service)
+		applyServiceAnnotations(pfAdminValues, pfSvcAnnotations)
+		applyServiceAnnotations(pfEngineValues, pfSvcAnnotations)
 	} // end PingFederate
 
 	// Assemble pingdirectory section
@@ -518,6 +521,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(pdValues, products.PingDirectory.Container.SecurityContext)
 		applyRawVolumes(pdValues, products.PingDirectory.Container)
+		applyServiceAnnotations(pdValues, resolveServiceAnnotations(env.Services, products.PingDirectory.Service))
 	}
 
 	// Assemble pingdataconsole section.
@@ -678,6 +682,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		applyWorkloadSecurityContext(paEngineValues, products.PingAccess.Container.SecurityContext)
 		applyRawVolumes(paAdminValues, products.PingAccess.Container)
 		applyRawVolumes(paEngineValues, products.PingAccess.Container)
+		paSvcAnnotations := resolveServiceAnnotations(env.Services, products.PingAccess.Service)
+		applyServiceAnnotations(paAdminValues, paSvcAnnotations)
+		applyServiceAnnotations(paEngineValues, paSvcAnnotations)
 	}
 
 	// Assemble pingauthorize section
@@ -781,6 +788,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(pazValues, products.PingAuthorize.Container.SecurityContext)
 		applyRawVolumes(pazValues, products.PingAuthorize.Container)
+		applyServiceAnnotations(pazValues, resolveServiceAnnotations(env.Services, products.PingAuthorize.Service))
 	}
 
 	// Assemble pingauthorizepap section
@@ -852,6 +860,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		applyWorkloadSecurityContext(papValues, products.PingAuthorizePAP.Container.SecurityContext)
 		applyRawVolumes(papValues, products.PingAuthorizePAP.Container)
+		applyServiceAnnotations(papValues, resolveServiceAnnotations(env.Services, products.PingAuthorizePAP.Service))
 	}
 
 	values := map[string]any{
@@ -1167,6 +1176,35 @@ func resolveTLSSecretRef(explicit, tenantID, suffix string) string {
 // ingressEnabled returns true if the resolved ingress should be created.
 func ingressEnabled(ing pingonev1alpha1.IngressSpec) bool {
 	return ing.Enabled != nil && *ing.Enabled
+}
+
+// resolveServiceAnnotations merges global service annotations with per-product ones.
+// Product annotations take precedence on conflict.
+func resolveServiceAnnotations(global pingonev1alpha1.GlobalServicesSpec, product pingonev1alpha1.ServiceSpec) map[string]string {
+	if len(global.Annotations) == 0 {
+		return product.Annotations
+	}
+	merged := make(map[string]string, len(global.Annotations)+len(product.Annotations))
+	for k, v := range global.Annotations {
+		merged[k] = v
+	}
+	for k, v := range product.Annotations {
+		merged[k] = v
+	}
+	return merged
+}
+
+// applyServiceAnnotations sets services.annotations on a product values map.
+func applyServiceAnnotations(productValues map[string]any, annotations map[string]string) {
+	if len(annotations) == 0 {
+		return
+	}
+	svcs, _ := productValues["services"].(map[string]any)
+	if svcs == nil {
+		svcs = make(map[string]any)
+	}
+	svcs["annotations"] = annotations
+	productValues["services"] = svcs
 }
 
 // resolveIngressSpec merges global ingress defaults into a per-component IngressSpec.

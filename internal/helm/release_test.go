@@ -159,6 +159,96 @@ func TestApplyRawVolumes_SkipsNilRaw(t *testing.T) {
 	}
 }
 
+// ---- resolveServiceAnnotations --------------------------------------------
+
+func TestResolveServiceAnnotations_GlobalOnly(t *testing.T) {
+	global := pingonev1alpha1.GlobalServicesSpec{
+		Annotations: map[string]string{"konghq.com/protocol": "https"},
+	}
+	got := resolveServiceAnnotations(global, pingonev1alpha1.ServiceSpec{})
+	if got["konghq.com/protocol"] != "https" {
+		t.Errorf("annotation missing or wrong: %v", got)
+	}
+}
+
+func TestResolveServiceAnnotations_ProductOverridesGlobal(t *testing.T) {
+	global := pingonev1alpha1.GlobalServicesSpec{
+		Annotations: map[string]string{"konghq.com/protocol": "https", "shared": "global"},
+	}
+	product := pingonev1alpha1.ServiceSpec{
+		Annotations: map[string]string{"konghq.com/protocol": "http", "product": "only"},
+	}
+	got := resolveServiceAnnotations(global, product)
+	// product wins on conflict
+	if got["konghq.com/protocol"] != "http" {
+		t.Errorf("product annotation should override global, got %q", got["konghq.com/protocol"])
+	}
+	// global key not overridden by product is preserved
+	if got["shared"] != "global" {
+		t.Errorf("global-only key lost: %v", got)
+	}
+	// product-only key is preserved
+	if got["product"] != "only" {
+		t.Errorf("product-only key lost: %v", got)
+	}
+}
+
+func TestResolveServiceAnnotations_NeitherSet(t *testing.T) {
+	got := resolveServiceAnnotations(
+		pingonev1alpha1.GlobalServicesSpec{},
+		pingonev1alpha1.ServiceSpec{},
+	)
+	if len(got) != 0 {
+		t.Errorf("expected empty map, got %v", got)
+	}
+}
+
+// ---- applyServiceAnnotations ----------------------------------------------
+
+func TestApplyServiceAnnotations_AddsToExistingServicesMap(t *testing.T) {
+	productValues := map[string]any{
+		"services": map[string]any{
+			"https": map[string]any{"containerPort": 9031},
+		},
+	}
+	applyServiceAnnotations(productValues, map[string]string{"konghq.com/protocol": "https"})
+
+	svcs := productValues["services"].(map[string]any)
+	ann, ok := svcs["annotations"].(map[string]string)
+	if !ok {
+		t.Fatalf("services.annotations type = %T, want map[string]string", svcs["annotations"])
+	}
+	if ann["konghq.com/protocol"] != "https" {
+		t.Errorf("annotation not set: %v", ann)
+	}
+	// existing service entry must survive
+	if svcs["https"] == nil {
+		t.Error("existing 'https' service entry was lost")
+	}
+}
+
+func TestApplyServiceAnnotations_CreatesServicesMapWhenAbsent(t *testing.T) {
+	productValues := map[string]any{}
+	applyServiceAnnotations(productValues, map[string]string{"konghq.com/protocol": "https"})
+
+	svcs, ok := productValues["services"].(map[string]any)
+	if !ok {
+		t.Fatalf("services type = %T, want map[string]any", productValues["services"])
+	}
+	if svcs["annotations"] == nil {
+		t.Error("services.annotations not set")
+	}
+}
+
+func TestApplyServiceAnnotations_NoOpWhenEmpty(t *testing.T) {
+	productValues := map[string]any{}
+	applyServiceAnnotations(productValues, nil)
+	applyServiceAnnotations(productValues, map[string]string{})
+	if _, exists := productValues["services"]; exists {
+		t.Error("services key should not be created when annotations are empty")
+	}
+}
+
 // ---- MergeValues -----------------------------------------------------------
 
 func TestMergeValues_EmptyOverride(t *testing.T) {

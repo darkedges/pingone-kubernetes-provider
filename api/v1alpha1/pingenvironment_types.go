@@ -5,6 +5,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// GlobalServicesSpec holds Kubernetes Service settings shared across all components.
+// Per-component ServiceSpec annotations take precedence on conflict.
+type GlobalServicesSpec struct {
+	// Annotations are merged into every component's Service resources.
+	// Per-component service.annotations take precedence on conflict.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// ServiceSpec holds per-product Kubernetes Service customisation.
+type ServiceSpec struct {
+	// Annotations are merged on top of the global service annotations for this component.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 // GlobalIngressSpec holds ingress settings shared across all components.
 // Per-component IngressSpec fields override these when set.
 type GlobalIngressSpec struct {
@@ -161,6 +175,9 @@ type PingAccessSpec struct {
 	// EngineIngress configures the Kubernetes Ingress for the PingAccess engine.
 	// Hostname defaults to pa.<spec.domain> when spec.domain is set.
 	EngineIngress IngressSpec `json:"engineIngress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAccess-specific environment variable configuration.
@@ -236,6 +253,9 @@ type PingAuthorizePAPSpec struct {
 	// Ingress configures the Kubernetes Ingress for the PAP web UI.
 	// Hostname defaults to paz-pap.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAuthorizePAP-specific environment variable configuration.
@@ -261,6 +281,9 @@ type PingAuthorizeSpec struct {
 	// Ingress configures the Kubernetes Ingress for the PingAuthorize management interface.
 	// Hostname defaults to paz.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAuthorize-specific environment variable configuration.
@@ -381,6 +404,9 @@ type PingFederateSpec struct {
 	// AdminIngress configures the Kubernetes Ingress for the PingFederate admin console.
 	// Hostname defaults to pf-admin.<spec.domain> when spec.domain is set.
 	AdminIngress IngressSpec `json:"adminIngress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingFederate-specific environment variable configuration.
@@ -420,6 +446,9 @@ type PingDirectorySpec struct {
 	StorageClass string `json:"storageClass,omitempty"`
 	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
 	StorageSize string `json:"storageSize,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingDirectory-specific environment variable configuration.
@@ -440,6 +469,9 @@ type PingEnvironmentSpec struct {
 	// Ingress holds shared ingress settings inherited by all components.
 	// Set enabled: true to turn on ingress for all components at once.
 	Ingress GlobalIngressSpec `json:"ingress,omitempty"`
+	// Services holds shared Kubernetes Service settings inherited by all components.
+	// Per-product service.annotations take precedence on conflict.
+	Services GlobalServicesSpec `json:"services,omitempty"`
 	// PingDataConsole configures the PingDataConsole web UI.
 	// Only deployed when this section is explicitly present and a PingDirectory CR references this environment.
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
