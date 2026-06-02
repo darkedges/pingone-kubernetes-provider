@@ -96,6 +96,12 @@ spec:
                     description: AdminSecretRef is the name of a Secret containing
                       admin credentials.
                     type: string
+                  adminWaitForTimeout:
+                    description: 'AdminWaitForTimeout is how long (seconds) to wait
+                      for the PA admin console before failing (ADMIN_WAITFOR_TIMEOUT).
+                      Default: 300.'
+                    format: int32
+                    type: integer
                   enginePort:
                     description: 'EnginePort is the HTTPS port for the PingAccess
                       engine (PA_ENGINE_PORT). Default: 3000.'

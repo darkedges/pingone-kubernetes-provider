@@ -75,6 +75,19 @@ lint: $(GOLANGCI_LINT) ## Run golangci-lint
 tidy: ## Run go mod tidy
 	go mod tidy
 
+# GEN_ENV_BASE_URL — base raw URL for the ping-devops README tree, e.g.:
+#   https://raw.githubusercontent.com/pingidentity/pingidentity-devops-getting-started/<commit>/docs/docker-images
+GEN_ENV_BASE_URL ?=
+GEN_ENV_ARGS     ?=
+
+.PHONY: gen-env-fields
+gen-env-fields: ## Extract env var fields from Ping Identity READMEs (set GEN_ENV_BASE_URL=<raw-url>)
+	@if [ -z "$(GEN_ENV_BASE_URL)" ]; then \
+	  echo "Usage: make gen-env-fields GEN_ENV_BASE_URL=<raw-base-url> [GEN_ENV_ARGS=\"-new-only pingfederate ...\"]"; \
+	  exit 1; \
+	fi
+	go run ./scripts/gen-env-fields $(GEN_ENV_ARGS) $(GEN_ENV_BASE_URL)
+
 # --------------------------------------------------------------------------- #
 #  Code generation                                                              #
 # --------------------------------------------------------------------------- #

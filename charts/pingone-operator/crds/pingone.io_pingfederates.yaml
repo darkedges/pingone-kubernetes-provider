@@ -83,10 +83,19 @@ spec:
                 description: Config holds PingFederate-specific environment variable
                   configuration.
                 properties:
+                  acceptQueueSize:
+                    description: 'AcceptQueueSize sets the size of the Jetty accept
+                      queue (PF_ACCEPT_QUEUE_SIZE). Default: 512.'
+                    format: int32
+                    type: integer
                   adminAPIAuthentication:
                     description: 'AdminAPIAuthentication is the admin API auth mechanism
                       (PF_ADMIN_API_AUTHENTICATION). Default: native.'
                     type: string
+                  adminDebug:
+                    description: 'AdminDebug enables Java remote debugging on the
+                      PingFederate admin (PF_ADMIN_DEBUG). Default: false.'
+                    type: boolean
                   adminPort:
                     description: 'AdminPort is the HTTPS port for the PingFederate
                       admin console/API (PF_ADMIN_PORT). Default: 9999.'
@@ -104,6 +113,16 @@ spec:
                     description: AdminSecretRef is the name of a Secret containing
                       admin credentials.
                     type: string
+                  adminWaitForTimeout:
+                    description: 'AdminWaitForTimeout is how long (seconds) to wait
+                      for the admin API before failing (ADMIN_WAITFOR_TIMEOUT). Default:
+                      300.'
+                    format: int32
+                    type: integer
+                  bcFIPSApprovedOnly:
+                    description: 'BCFIPSApprovedOnly restricts the JVM to FIPS-approved
+                      algorithms only (PF_BC_FIPS_APPROVED_ONLY). Default: false.'
+                    type: boolean
                   consoleAuthentication:
                     description: 'ConsoleAuthentication is the admin console auth
                       mechanism (PF_CONSOLE_AUTHENTICATION). Default: native.'
@@ -116,6 +135,26 @@ spec:
                     description: ConsoleTitle is the title shown in the admin console
                       (PF_CONSOLE_TITLE).
                     type: string
+                  createInitialAdminUser:
+                    description: 'CreateInitialAdminUser creates the initial administrator
+                      account after first startup (CREATE_INITIAL_ADMIN_USER). Default:
+                      false.'
+                    type: boolean
+                  debugPort:
+                    description: |-
+                      DebugPort is the Java remote debug listener port (PF_DEBUG_PORT). Default: 9030.
+                      Only meaningful when engineDebug or adminDebug is true.
+                    format: int32
+                    type: integer
+                  enableAutomaticHeapDump:
+                    description: |-
+                      EnableAutomaticHeapDump enables JVM heap dumps on OutOfMemoryError (ENABLE_AUTOMATIC_HEAP_DUMP). Default: true.
+                      Set to false to disable automatic heap dumps.
+                    type: boolean
+                  engineDebug:
+                    description: 'EngineDebug enables Java remote debugging on the
+                      PingFederate engine (PF_ENGINE_DEBUG). Default: false.'
+                    type: boolean
                   enginePort:
                     description: 'EnginePort is the HTTPS port for the PingFederate
                       runtime engine (PF_ENGINE_PORT). Default: 9031.'
@@ -125,10 +164,21 @@ spec:
                     description: EnginePublicHostname is the public hostname of the
                       PF engine node (PF_ENGINE_PUBLIC_HOSTNAME).
                     type: string
+                  engineSecondaryPort:
+                    description: 'EngineSecondaryPort is a secondary HTTPS port for
+                      mutual SSL/TLS client certificate authentication (PF_ENGINE_SECONDARY_PORT).
+                      Default: -1 (disabled).'
+                    format: int32
+                    type: integer
                   envConfigMapRef:
                     description: EnvConfigMapRef is the name of a ConfigMap with additional
                       env vars to inject.
                     type: string
+                  hsmHybrid:
+                    description: 'HSMHybrid enables HSM hybrid mode where certs/keys
+                      can be created on the local trust store or the HSM (PF_HSM_HYBRID).
+                      Default: false.'
+                    type: boolean
                   hsmMode:
                     description: 'HSMMode is the Hardware Security Module mode (HSM_MODE).
                       Default: OFF.'
@@ -137,6 +187,16 @@ spec:
                     description: 'JavaRAMPercentage is the percentage of container
                       memory for the JVM (JAVA_RAM_PERCENTAGE). Default: 75.0.'
                     type: string
+                  jettyThreadsMax:
+                    description: JettyThreadsMax overrides the maximum Jetty thread
+                      pool size (PF_JETTY_THREADS_MAX).
+                    format: int32
+                    type: integer
+                  jettyThreadsMin:
+                    description: JettyThreadsMin overrides the minimum Jetty thread
+                      pool size (PF_JETTY_THREADS_MIN).
+                    format: int32
+                    type: integer
                   ldapSecretRef:
                     description: LDAPSecretRef is the name of a Secret containing
                       PF_LDAP_PASSWORD.
@@ -147,6 +207,19 @@ spec:
                     type: string
                   ldapUsername:
                     description: LDAPUsername is the username for LDAP lookups (PF_LDAP_USERNAME).
+                    type: string
+                  logNumber:
+                    description: 'LogNumber is the maximum number of log files retained
+                      on rotation (PF_LOG_NUMBER). Default: 2.'
+                    format: int32
+                    type: integer
+                  logSizeMax:
+                    description: 'LogSizeMax is the maximum size for all log file
+                      appenders (PF_LOG_SIZE_MAX). Default: "10000 KB".'
+                    type: string
+                  nodeTags:
+                    description: NodeTags are space-separated tags associated with
+                      this PingFederate node used for request routing (PF_NODE_TAGS).
                     type: string
                   operationalMode:
                     description: 'OperationalMode is one of STANDALONE, CLUSTERED_CONSOLE,
@@ -160,6 +233,12 @@ spec:
                     description: PingOneRegion is the region of the PingOne tenant
                       (PF_PINGONE_REGION).
                     type: string
+                  provisionerGracePeriod:
+                    description: |-
+                      ProvisionerGracePeriod is the provisioner failover grace period in seconds (PF_PROVISIONER_GRACE_PERIOD). Default: 600.
+                      Only meaningful when provisionerMode is FAILOVER.
+                    format: int32
+                    type: integer
                   provisionerMode:
                     description: 'ProvisionerMode is one of OFF, STANDALONE, FAILOVER
                       (PF_PROVISIONER_MODE). Default: OFF.'
