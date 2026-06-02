@@ -448,7 +448,19 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		pdEnvs["FIPS_MODE_ON"] = fmt.Sprintf("%t", pdCfg.FIPSModeOn)
 		pdEnvs["PD_REBUILD_ON_RESTART"] = fmt.Sprintf("%t", pdCfg.RebuildOnRestart)
 		pdEnvs["FAIL_ON_DISABLED_BASE_DN"] = fmt.Sprintf("%t", pdCfg.FailOnDisabledBaseDN)
+		pdEnvs["FAIL_ON_UNSUCCESSFUL_REMOVE_DEFUNCT"] = fmt.Sprintf("%t", pdCfg.FailOnUnsuccessfulRemoveDefunct)
+		pdEnvs["PD_FORCE_DATA_REIMPORT"] = fmt.Sprintf("%t", pdCfg.ForceDataReimport)
+		pdEnvs["SKIP_WAIT_FOR_DNS"] = fmt.Sprintf("%t", pdCfg.SkipWaitForDNS)
 		pdEnvs["PARALLEL_POD_MANAGEMENT_POLICY"] = fmt.Sprintf("%t", pdCfg.ParallelPodManagement)
+		if pdCfg.LoadBalancingAlgorithmNames != "" {
+			pdEnvs["LOAD_BALANCING_ALGORITHM_NAMES"] = pdCfg.LoadBalancingAlgorithmNames
+		}
+		if pdCfg.RestrictedBaseDNs != "" {
+			pdEnvs["RESTRICTED_BASE_DNS"] = pdCfg.RestrictedBaseDNs
+		}
+		if pdCfg.CertificateNickname != "" {
+			pdEnvs["CERTIFICATE_NICKNAME"] = pdCfg.CertificateNickname
+		}
 		pdEnvs["UNBOUNDID_SKIP_START_PRECHECK_NODETACH"] = "true"
 		pdEnvs["JAVA_RAM_PERCENTAGE"] = "75.0"
 		pdEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/logs/access ${SERVER_ROOT_DIR}/logs/errors ${SERVER_ROOT_DIR}/logs/failed-ops ${SERVER_ROOT_DIR}/logs/config-audit.log"
@@ -612,6 +624,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		if paCfg.EnginePublicHostname != "" {
 			paEnvs["PA_ENGINE_PUBLIC_HOSTNAME"] = paCfg.EnginePublicHostname
+		}
+		if paCfg.AdminWaitForTimeout != 0 {
+			paEnvs["ADMIN_WAITFOR_TIMEOUT"] = fmt.Sprintf("%d", paCfg.AdminWaitForTimeout)
 		}
 
 		paEnvFrom := map[string]any{}

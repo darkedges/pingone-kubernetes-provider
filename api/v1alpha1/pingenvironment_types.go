@@ -153,6 +153,8 @@ type PingAccessConfig struct {
 	FIPSModeOn bool `json:"fipsModeOn,omitempty"`
 	// JavaRAMPercentage is the percentage of container memory for the JVM (JAVA_RAM_PERCENTAGE). Default: 60.0.
 	JavaRAMPercentage string `json:"javaRamPercentage,omitempty"`
+	// AdminWaitForTimeout is how long (seconds) to wait for the PA admin console before failing (ADMIN_WAITFOR_TIMEOUT). Default: 300.
+	AdminWaitForTimeout int32 `json:"adminWaitForTimeout,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
@@ -383,8 +385,20 @@ type PingDirectoryConfig struct {
 	RebuildOnRestart bool `json:"rebuildOnRestart,omitempty"`
 	// ParallelPodManagement must be true when StatefulSet uses Parallel podManagementPolicy. Default: false.
 	ParallelPodManagement bool `json:"parallelPodManagement,omitempty"`
-	// FailOnDisabledBaseDN fails the container if USER_BASE_DN replication is not enabled. Default: false.
+	// FailOnDisabledBaseDN fails the container if USER_BASE_DN replication is not enabled (FAIL_ON_DISABLED_BASE_DN). Default: false.
 	FailOnDisabledBaseDN bool `json:"failOnDisabledBaseDN,omitempty"`
+	// FailOnUnsuccessfulRemoveDefunct fails the container if a previous remove-defunct-server call did not complete successfully (FAIL_ON_UNSUCCESSFUL_REMOVE_DEFUNCT). Default: false.
+	FailOnUnsuccessfulRemoveDefunct bool `json:"failOnUnsuccessfulRemoveDefunct,omitempty"`
+	// ForceDataReimport forces a backend data export and re-import on restart (PD_FORCE_DATA_REIMPORT). Default: false.
+	ForceDataReimport bool `json:"forceDataReimport,omitempty"`
+	// SkipWaitForDNS skips the DNS readiness check on startup (SKIP_WAIT_FOR_DNS). Default: false.
+	SkipWaitForDNS bool `json:"skipWaitForDNS,omitempty"`
+	// LoadBalancingAlgorithmNames is a semicolon-separated list of load-balancing algorithm names (LOAD_BALANCING_ALGORITHM_NAMES).
+	LoadBalancingAlgorithmNames string `json:"loadBalancingAlgorithmNames,omitempty"`
+	// RestrictedBaseDNs is a semicolon-separated list of base DNs used for entry-balancing configuration (RESTRICTED_BASE_DNS).
+	RestrictedBaseDNs string `json:"restrictedBaseDNs,omitempty"`
+	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
+	CertificateNickname string `json:"certificateNickname,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// KeystoreSecretRef is the name of a Secret containing the keystore for TLS.
