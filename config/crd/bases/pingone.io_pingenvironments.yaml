@@ -168,6 +168,19 @@ spec:
                   Per-product container.securityContext overrides this.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              services:
+                description: |-
+                  Services holds shared Kubernetes Service settings inherited by all components.
+                  Per-product service.annotations take precedence on conflict.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Annotations are merged into every component's Service resources.
+                      Per-component service.annotations take precedence on conflict.
+                    type: object
+                type: object
               targetNamespace:
                 description: TargetNamespace is the namespace to deploy into; defaults
                   to metadata.namespace.

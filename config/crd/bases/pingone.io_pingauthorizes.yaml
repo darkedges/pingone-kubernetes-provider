@@ -280,6 +280,18 @@ spec:
                   Default: 1.'
                 format: int32
                 type: integer
+              service:
+                description: |-
+                  Service holds Kubernetes Service customisation for this product.
+                  Annotations are merged on top of spec.services.annotations.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations are merged on top of the global service
+                      annotations for this component.
+                    type: object
+                type: object
               storageClass:
                 description: StorageClass is the storage class used for PersistentVolumeClaims.
                 type: string

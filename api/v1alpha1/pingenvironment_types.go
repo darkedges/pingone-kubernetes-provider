@@ -238,6 +238,19 @@ type PingAuthorizePAPConfig struct {
 	EnableAPIHTTPCache *bool `json:"enableAPIHTTPCache,omitempty"`
 	// PolicyDBSync enables database creation/upgrade mode (PING_POLICY_DB_SYNC).
 	PolicyDBSync bool `json:"policyDBSync,omitempty"`
+	// DBConnectionString is the JDBC connection string for the policy database (PING_DB_CONNECTION_STRING).
+	// Use "jdbc:postgresql://<host>:<port>/<db>" for PostgreSQL. Defaults to embedded H2.
+	DBConnectionString string `json:"dbConnectionString,omitempty"`
+	// DBAdminUsername is the database administrator username for DB creation/upgrade (PING_DB_ADMIN_USERNAME).
+	DBAdminUsername string `json:"dbAdminUsername,omitempty"`
+	// DBAppUsername is the runtime database username for the Policy Editor (PING_DB_APP_USERNAME).
+	DBAppUsername string `json:"dbAppUsername,omitempty"`
+	// DBSecretRef is the name of a Secret containing PING_DB_ADMIN_PASSWORD and PING_DB_APP_PASSWORD.
+	DBSecretRef string `json:"dbSecretRef,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12.
+	KeystoreType string `json:"keystoreType,omitempty"`
 	// SharedSecretRef is the name of a Secret containing DECISION_POINT_SHARED_SECRET for PAZ integration.
 	SharedSecretRef string `json:"sharedSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
@@ -345,6 +358,34 @@ type PingFederateConfig struct {
 	JavaRAMPercentage string `json:"javaRamPercentage,omitempty"`
 	// HSMMode is the Hardware Security Module mode (HSM_MODE). Default: OFF.
 	HSMMode string `json:"hsmMode,omitempty"`
+	// HSMHybrid enables HSM hybrid mode where certs/keys can be created on the local trust store or the HSM (PF_HSM_HYBRID). Default: false.
+	HSMHybrid bool `json:"hsmHybrid,omitempty"`
+	// BCFIPSApprovedOnly restricts the JVM to FIPS-approved algorithms only (PF_BC_FIPS_APPROVED_ONLY). Default: false.
+	BCFIPSApprovedOnly bool `json:"bcFIPSApprovedOnly,omitempty"`
+	// EngineSecondaryPort is a secondary HTTPS port for mutual SSL/TLS client certificate authentication (PF_ENGINE_SECONDARY_PORT). Default: -1 (disabled).
+	EngineSecondaryPort int32 `json:"engineSecondaryPort,omitempty"`
+	// NodeTags are space-separated tags associated with this PingFederate node used for request routing (PF_NODE_TAGS).
+	NodeTags string `json:"nodeTags,omitempty"`
+	// ProvisionerGracePeriod is the provisioner failover grace period in seconds (PF_PROVISIONER_GRACE_PERIOD). Default: 600.
+	// Only meaningful when provisionerMode is FAILOVER.
+	ProvisionerGracePeriod int32 `json:"provisionerGracePeriod,omitempty"`
+	// AdminWaitForTimeout is how long (seconds) to wait for the admin API before failing (ADMIN_WAITFOR_TIMEOUT). Default: 300.
+	AdminWaitForTimeout int32 `json:"adminWaitForTimeout,omitempty"`
+	// LogSizeMax is the maximum size for all log file appenders (PF_LOG_SIZE_MAX). Default: "10000 KB".
+	LogSizeMax string `json:"logSizeMax,omitempty"`
+	// LogNumber is the maximum number of log files retained on rotation (PF_LOG_NUMBER). Default: 2.
+	LogNumber int32 `json:"logNumber,omitempty"`
+	// JettyThreadsMin overrides the minimum Jetty thread pool size (PF_JETTY_THREADS_MIN).
+	JettyThreadsMin int32 `json:"jettyThreadsMin,omitempty"`
+	// JettyThreadsMax overrides the maximum Jetty thread pool size (PF_JETTY_THREADS_MAX).
+	JettyThreadsMax int32 `json:"jettyThreadsMax,omitempty"`
+	// AcceptQueueSize sets the size of the Jetty accept queue (PF_ACCEPT_QUEUE_SIZE). Default: 512.
+	AcceptQueueSize int32 `json:"acceptQueueSize,omitempty"`
+	// CreateInitialAdminUser creates the initial administrator account after first startup (CREATE_INITIAL_ADMIN_USER). Default: false.
+	CreateInitialAdminUser bool `json:"createInitialAdminUser,omitempty"`
+	// EnableAutomaticHeapDump enables JVM heap dumps on OutOfMemoryError (ENABLE_AUTOMATIC_HEAP_DUMP). Default: true.
+	// Set to false to disable automatic heap dumps.
+	EnableAutomaticHeapDump *bool `json:"enableAutomaticHeapDump,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// LDAPSecretRef is the name of a Secret containing PF_LDAP_PASSWORD.
@@ -399,9 +440,17 @@ type PingDirectoryConfig struct {
 	RestrictedBaseDNs string `json:"restrictedBaseDNs,omitempty"`
 	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
 	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// EncryptionSecretRef is the name of a Secret containing the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
+	EncryptionSecretRef string `json:"encryptionSecretRef,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	TruststoreType string `json:"truststoreType,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
-	// KeystoreSecretRef is the name of a Secret containing the keystore for TLS.
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
 	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
@@ -446,6 +495,15 @@ type PingDataConsoleSpec struct {
 	Image string `json:"image,omitempty"`
 	// Version is the container image tag. Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
+	// HTTPPort is the HTTP listen port for PingDataConsole (HTTP_PORT). Default: 8080.
+	HTTPPort int32 `json:"httpPort,omitempty"`
+	// HTTPSPort is the HTTPS listen port for PingDataConsole (HTTPS_PORT). Default: 8443.
+	HTTPSPort int32 `json:"httpsPort,omitempty"`
+	// BrandingAppName sets the application name shown on the sign-on page and banner (BRANDING_APP_NAME).
+	// Default: "PingDirectory Admin Console".
+	BrandingAppName string `json:"brandingAppName,omitempty"`
+	// SystemReadOnly puts the console in read-only mode when true (SYSTEM_READ_ONLY). Default: false.
+	SystemReadOnly bool `json:"systemReadOnly,omitempty"`
 	// Ingress configures the Kubernetes Ingress for PingDataConsole.
 	// Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
@@ -474,6 +532,126 @@ type PingDirectorySpec struct {
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingDirectory-specific environment variable configuration.
 	Config PingDirectoryConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
+// PingDataSyncConfig maps to the env vars consumed by the pingdatasync container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingdatasync/README.html
+type PingDataSyncConfig struct {
+	// ServerProfile is the primary server profile for PingDataSync.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers.
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
+	// AdminUserName is the failover administrative user (ADMIN_USER_NAME). Default: admin.
+	AdminUserName string `json:"adminUserName,omitempty"`
+	// RetryTimeoutSeconds is the timeout for manage-topology operations (RETRY_TIMEOUT_SECONDS). Default: 180.
+	RetryTimeoutSeconds int32 `json:"retryTimeoutSeconds,omitempty"`
+	// RebuildOnRestart forces replace-profile on every restart (PD_REBUILD_ON_RESTART). Default: false.
+	RebuildOnRestart bool `json:"rebuildOnRestart,omitempty"`
+	// ParallelPodManagement must be true when StatefulSet uses Parallel podManagementPolicy (PARALLEL_POD_MANAGEMENT_POLICY). Default: false.
+	ParallelPodManagement bool `json:"parallelPodManagement,omitempty"`
+	// SkipWaitForDNS skips the DNS readiness check on startup (SKIP_WAIT_FOR_DNS). Default: false.
+	SkipWaitForDNS bool `json:"skipWaitForDNS,omitempty"`
+	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
+	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	TruststoreType string `json:"truststoreType,omitempty"`
+	// AdminSecretRef is the name of a Secret containing admin credentials (ROOT_USER_PASSWORD_FILE / ADMIN_USER_PASSWORD_FILE).
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingDataSyncSpec defines the desired state of a PingDataSync deployment.
+type PingDataSyncSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag. Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingDataSync pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
+	// StorageClass is the storage class used for PersistentVolumeClaims.
+	StorageClass string `json:"storageClass,omitempty"`
+	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
+	StorageSize string `json:"storageSize,omitempty"`
+	// Ingress configures the Kubernetes Ingress for PingDataSync.
+	// Hostname defaults to pds.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	Service ServiceSpec `json:"service,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
+	// Config holds PingDataSync-specific environment variable configuration.
+	Config PingDataSyncConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
+// PingDirectoryProxyConfig maps to the env vars consumed by the pingdirectoryproxy container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingdirectoryproxy/README.html
+type PingDirectoryProxyConfig struct {
+	// ServerProfile is the primary server profile for PingDirectoryProxy.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers.
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
+	// AdminUserName is the replication administrative user (ADMIN_USER_NAME). Default: admin.
+	AdminUserName string `json:"adminUserName,omitempty"`
+	// RetryTimeoutSeconds is the timeout for manage-topology operations (RETRY_TIMEOUT_SECONDS). Default: 180.
+	RetryTimeoutSeconds int32 `json:"retryTimeoutSeconds,omitempty"`
+	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
+	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	TruststoreType string `json:"truststoreType,omitempty"`
+	// PingDirectoryHostname is the PingDirectory hostname used for automatic server discovery (PINGDIRECTORY_HOSTNAME).
+	PingDirectoryHostname string `json:"pingDirectoryHostname,omitempty"`
+	// PingDirectoryLDAPSPort is the PingDirectory LDAPS port for automatic server discovery (PINGDIRECTORY_LDAPS_PORT).
+	PingDirectoryLDAPSPort int32 `json:"pingDirectoryLDAPSPort,omitempty"`
+	// JoinPDTopology configures the proxy to join the topology of PingDirectory (JOIN_PD_TOPOLOGY). Default: false.
+	JoinPDTopology bool `json:"joinPDTopology,omitempty"`
+	// AdminSecretRef is the name of a Secret containing admin credentials (ROOT_USER_PASSWORD_FILE).
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingDirectoryProxySpec defines the desired state of a PingDirectoryProxy deployment.
+type PingDirectoryProxySpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag. Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingDirectoryProxy pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
+	// StorageClass is the storage class used for PersistentVolumeClaims.
+	StorageClass string `json:"storageClass,omitempty"`
+	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
+	StorageSize string `json:"storageSize,omitempty"`
+	// Ingress configures the Kubernetes Ingress for PingDirectoryProxy.
+	// Hostname defaults to pdp.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	Service ServiceSpec `json:"service,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
+	// Config holds PingDirectoryProxy-specific environment variable configuration.
+	Config PingDirectoryProxyConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
 	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
 }

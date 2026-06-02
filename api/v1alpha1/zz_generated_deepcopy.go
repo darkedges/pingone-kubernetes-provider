@@ -68,6 +68,10 @@ func (in *PingFederateConfig) DeepCopyInto(out *PingFederateConfig) {
 		*out = make([]ServerProfileLayerSpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.EnableAutomaticHeapDump != nil {
+		x := *in.EnableAutomaticHeapDump
+		out.EnableAutomaticHeapDump = &x
+	}
 }
 
 // DeepCopy creates a deep copy of PingFederateConfig.
@@ -76,6 +80,96 @@ func (in *PingFederateConfig) DeepCopy() *PingFederateConfig {
 		return nil
 	}
 	out := new(PingFederateConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDataSyncConfig) DeepCopyInto(out *PingDataSyncConfig) {
+	*out = *in
+	if in.ServerProfile != nil {
+		in, out := &in.ServerProfile, &out.ServerProfile
+		*out = new(ServerProfileSpec)
+		**out = **in
+	}
+	if in.ServerProfileLayers != nil {
+		in, out := &in.ServerProfileLayers, &out.ServerProfileLayers
+		*out = make([]ServerProfileLayerSpec, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopy creates a deep copy of PingDataSyncConfig.
+func (in *PingDataSyncConfig) DeepCopy() *PingDataSyncConfig {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDataSyncConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDataSyncSpec) DeepCopyInto(out *PingDataSyncSpec) {
+	*out = *in
+	in.Ingress.DeepCopyInto(&out.Ingress)
+	in.Service.DeepCopyInto(&out.Service)
+	in.Container.DeepCopyInto(&out.Container)
+	in.Config.DeepCopyInto(&out.Config)
+	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)
+}
+
+// DeepCopy creates a deep copy of PingDataSyncSpec.
+func (in *PingDataSyncSpec) DeepCopy() *PingDataSyncSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDataSyncSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectoryProxyConfig) DeepCopyInto(out *PingDirectoryProxyConfig) {
+	*out = *in
+	if in.ServerProfile != nil {
+		in, out := &in.ServerProfile, &out.ServerProfile
+		*out = new(ServerProfileSpec)
+		**out = **in
+	}
+	if in.ServerProfileLayers != nil {
+		in, out := &in.ServerProfileLayers, &out.ServerProfileLayers
+		*out = make([]ServerProfileLayerSpec, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopy creates a deep copy of PingDirectoryProxyConfig.
+func (in *PingDirectoryProxyConfig) DeepCopy() *PingDirectoryProxyConfig {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectoryProxyConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectoryProxySpec) DeepCopyInto(out *PingDirectoryProxySpec) {
+	*out = *in
+	in.Ingress.DeepCopyInto(&out.Ingress)
+	in.Service.DeepCopyInto(&out.Service)
+	in.Container.DeepCopyInto(&out.Container)
+	in.Config.DeepCopyInto(&out.Config)
+	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)
+}
+
+// DeepCopy creates a deep copy of PingDirectoryProxySpec.
+func (in *PingDirectoryProxySpec) DeepCopy() *PingDirectoryProxySpec {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectoryProxySpec)
 	in.DeepCopyInto(out)
 	return out
 }

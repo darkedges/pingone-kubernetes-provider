@@ -164,11 +164,13 @@ func TierResources(tier, product string) (cpu, memory string) {
 // ProductSpecs bundles the optional per-product specs contributed by each product CR.
 // A nil entry means that product is not deployed.
 type ProductSpecs struct {
-	PingFederate     *pingonev1alpha1.PingFederateSpec
-	PingDirectory    *pingonev1alpha1.PingDirectorySpec
-	PingAccess       *pingonev1alpha1.PingAccessSpec
-	PingAuthorize    *pingonev1alpha1.PingAuthorizeSpec
-	PingAuthorizePAP *pingonev1alpha1.PingAuthorizePAPSpec
+	PingFederate       *pingonev1alpha1.PingFederateSpec
+	PingDirectory      *pingonev1alpha1.PingDirectorySpec
+	PingAccess         *pingonev1alpha1.PingAccessSpec
+	PingAuthorize      *pingonev1alpha1.PingAuthorizeSpec
+	PingAuthorizePAP   *pingonev1alpha1.PingAuthorizePAPSpec
+	PingDataSync       *pingonev1alpha1.PingDataSyncSpec
+	PingDirectoryProxy *pingonev1alpha1.PingDirectoryProxySpec
 }
 
 // BuildPingValues constructs the full Helm values map for a ping-devops release
@@ -295,6 +297,10 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		if pfCfg.ProvisionerNodeID != 0 {
 			pfEnvs["PF_PROVISIONER_NODE_ID"] = fmt.Sprintf("%d", pfCfg.ProvisionerNodeID)
+		}
+		if pfCfg.ProvisionerGracePeriod != 0 {
+			pfEnvs["PF_PROVISIONER_GRACE_PERIOD"] = fmt.Sprintf("%d", pfCfg.ProvisionerGracePeriod)
+		} else if pfCfg.ProvisionerNodeID != 0 {
 			pfEnvs["PF_PROVISIONER_GRACE_PERIOD"] = "600"
 		}
 
@@ -305,6 +311,12 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pfCfg.HSMMode != "" {
 			pfEnvs["HSM_MODE"] = pfCfg.HSMMode
 		}
+		if pfCfg.HSMHybrid {
+			pfEnvs["PF_HSM_HYBRID"] = "true"
+		}
+		if pfCfg.BCFIPSApprovedOnly {
+			pfEnvs["PF_BC_FIPS_APPROVED_ONLY"] = "true"
+		}
 		if pfCfg.EngineDebug {
 			pfEnvs["PF_ENGINE_DEBUG"] = "true"
 		}
@@ -313,6 +325,36 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		if pfCfg.DebugPort != 0 {
 			pfEnvs["PF_DEBUG_PORT"] = fmt.Sprintf("%d", pfCfg.DebugPort)
+		}
+		if pfCfg.EngineSecondaryPort != 0 {
+			pfEnvs["PF_ENGINE_SECONDARY_PORT"] = fmt.Sprintf("%d", pfCfg.EngineSecondaryPort)
+		}
+		if pfCfg.NodeTags != "" {
+			pfEnvs["PF_NODE_TAGS"] = pfCfg.NodeTags
+		}
+		if pfCfg.AdminWaitForTimeout != 0 {
+			pfEnvs["ADMIN_WAITFOR_TIMEOUT"] = fmt.Sprintf("%d", pfCfg.AdminWaitForTimeout)
+		}
+		if pfCfg.LogSizeMax != "" {
+			pfEnvs["PF_LOG_SIZE_MAX"] = pfCfg.LogSizeMax
+		}
+		if pfCfg.LogNumber != 0 {
+			pfEnvs["PF_LOG_NUMBER"] = fmt.Sprintf("%d", pfCfg.LogNumber)
+		}
+		if pfCfg.JettyThreadsMin != 0 {
+			pfEnvs["PF_JETTY_THREADS_MIN"] = fmt.Sprintf("%d", pfCfg.JettyThreadsMin)
+		}
+		if pfCfg.JettyThreadsMax != 0 {
+			pfEnvs["PF_JETTY_THREADS_MAX"] = fmt.Sprintf("%d", pfCfg.JettyThreadsMax)
+		}
+		if pfCfg.AcceptQueueSize != 0 {
+			pfEnvs["PF_ACCEPT_QUEUE_SIZE"] = fmt.Sprintf("%d", pfCfg.AcceptQueueSize)
+		}
+		if pfCfg.CreateInitialAdminUser {
+			pfEnvs["CREATE_INITIAL_ADMIN_USER"] = "true"
+		}
+		if pfCfg.EnableAutomaticHeapDump != nil {
+			pfEnvs["ENABLE_AUTOMATIC_HEAP_DUMP"] = fmt.Sprintf("%t", *pfCfg.EnableAutomaticHeapDump)
 		}
 
 		// Logging
@@ -461,6 +503,12 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pdCfg.CertificateNickname != "" {
 			pdEnvs["CERTIFICATE_NICKNAME"] = pdCfg.CertificateNickname
 		}
+		if pdCfg.KeystoreType != "" {
+			pdEnvs["KEYSTORE_TYPE"] = pdCfg.KeystoreType
+		}
+		if pdCfg.TruststoreType != "" {
+			pdEnvs["TRUSTSTORE_TYPE"] = pdCfg.TruststoreType
+		}
 		pdEnvs["UNBOUNDID_SKIP_START_PRECHECK_NODETACH"] = "true"
 		pdEnvs["JAVA_RAM_PERCENTAGE"] = "75.0"
 		pdEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/logs/access ${SERVER_ROOT_DIR}/logs/errors ${SERVER_ROOT_DIR}/logs/failed-ops ${SERVER_ROOT_DIR}/logs/config-audit.log"
@@ -486,10 +534,21 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 
 		// PingDirectory envFrom
 		pdEnvFrom := map[string]any{}
+		pdSecretRefs := []map[string]any{}
 		if pdCfg.AdminSecretRef != "" {
-			pdEnvFrom["secretRef"] = []map[string]any{
-				{"name": pdCfg.AdminSecretRef},
-			}
+			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.AdminSecretRef})
+		}
+		if pdCfg.EncryptionSecretRef != "" {
+			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.EncryptionSecretRef})
+		}
+		if pdCfg.KeystoreSecretRef != "" {
+			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.KeystoreSecretRef})
+		}
+		if pdCfg.TruststoreSecretRef != "" {
+			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.TruststoreSecretRef})
+		}
+		if len(pdSecretRefs) > 0 {
+			pdEnvFrom["secretRef"] = pdSecretRefs
 		}
 		if pdCfg.EnvConfigMapRef != "" {
 			pdEnvFrom["configMapRef"] = []map[string]any{
@@ -576,6 +635,20 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			firstNonEmpty(pdc.Version, products.PingDirectory.Version),
 		)
 
+		pdcEnvs := map[string]any{}
+		if pdc.HTTPPort != 0 {
+			pdcEnvs["HTTP_PORT"] = fmt.Sprintf("%d", pdc.HTTPPort)
+		}
+		if pdc.HTTPSPort != 0 {
+			pdcEnvs["HTTPS_PORT"] = fmt.Sprintf("%d", pdc.HTTPSPort)
+		}
+		if pdc.BrandingAppName != "" {
+			pdcEnvs["BRANDING_APP_NAME"] = pdc.BrandingAppName
+		}
+		if pdc.SystemReadOnly {
+			pdcEnvs["SYSTEM_READ_ONLY"] = "true"
+		}
+
 		pdcValues = map[string]any{
 			"enabled": true,
 			"image":   pdcImage,
@@ -586,6 +659,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"ingress": pdcIngressValues,
+		}
+		if len(pdcEnvs) > 0 {
+			pdcValues["envs"] = pdcEnvs
 		}
 	} else {
 		pdcValues = map[string]any{"enabled": false}
@@ -847,11 +923,33 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if papCfg.PolicyDBSync {
 			papEnvs["PING_POLICY_DB_SYNC"] = "true"
 		}
+		if papCfg.DBConnectionString != "" {
+			papEnvs["PING_DB_CONNECTION_STRING"] = papCfg.DBConnectionString
+		}
+		if papCfg.DBAdminUsername != "" {
+			papEnvs["PING_DB_ADMIN_USERNAME"] = papCfg.DBAdminUsername
+		}
+		if papCfg.DBAppUsername != "" {
+			papEnvs["PING_DB_APP_USERNAME"] = papCfg.DBAppUsername
+		}
+		if papCfg.KeystoreType != "" {
+			papEnvs["KEYSTORE_TYPE"] = papCfg.KeystoreType
+		}
 		emitServerProfileEnvs(papEnvs, papCfg.ServerProfile, papCfg.ServerProfileLayers)
 
 		papEnvFrom := map[string]any{}
+		papSecretRefs := []map[string]any{}
 		if papCfg.SharedSecretRef != "" {
-			papEnvFrom["secretRef"] = []map[string]any{{"name": papCfg.SharedSecretRef}}
+			papSecretRefs = append(papSecretRefs, map[string]any{"name": papCfg.SharedSecretRef})
+		}
+		if papCfg.DBSecretRef != "" {
+			papSecretRefs = append(papSecretRefs, map[string]any{"name": papCfg.DBSecretRef})
+		}
+		if papCfg.KeystoreSecretRef != "" {
+			papSecretRefs = append(papSecretRefs, map[string]any{"name": papCfg.KeystoreSecretRef})
+		}
+		if len(papSecretRefs) > 0 {
+			papEnvFrom["secretRef"] = papSecretRefs
 		}
 		if papCfg.EnvConfigMapRef != "" {
 			papEnvFrom["configMapRef"] = []map[string]any{{"name": papCfg.EnvConfigMapRef}}
@@ -887,6 +985,221 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		applyServiceAnnotations(papValues, resolveServiceAnnotations(env.Services, products.PingAuthorizePAP.Service))
 	}
 
+	// Assemble pingdatasync section
+	var pdsValues map[string]any
+	if products.PingDataSync == nil {
+		pdsValues = map[string]any{"enabled": false}
+	} else {
+		pdsCPU, pdsMem := TierResources(env.Tier, "pd")
+		pdsCfg := products.PingDataSync.Config
+		pdsSpec := products.PingDataSync
+
+		pdsEnvs := map[string]any{}
+		emitServerProfileEnvs(pdsEnvs, pdsCfg.ServerProfile, pdsCfg.ServerProfileLayers)
+		if pdsCfg.AdminUserName != "" {
+			pdsEnvs["ADMIN_USER_NAME"] = pdsCfg.AdminUserName
+		}
+		if pdsCfg.RetryTimeoutSeconds != 0 {
+			pdsEnvs["RETRY_TIMEOUT_SECONDS"] = fmt.Sprintf("%d", pdsCfg.RetryTimeoutSeconds)
+		}
+		if pdsCfg.RebuildOnRestart {
+			pdsEnvs["PD_REBUILD_ON_RESTART"] = "true"
+		}
+		if pdsCfg.ParallelPodManagement {
+			pdsEnvs["PARALLEL_POD_MANAGEMENT_POLICY"] = "true"
+		}
+		if pdsCfg.SkipWaitForDNS {
+			pdsEnvs["SKIP_WAIT_FOR_DNS"] = "true"
+		}
+		if pdsCfg.CertificateNickname != "" {
+			pdsEnvs["CERTIFICATE_NICKNAME"] = pdsCfg.CertificateNickname
+		}
+		if pdsCfg.KeystoreType != "" {
+			pdsEnvs["KEYSTORE_TYPE"] = pdsCfg.KeystoreType
+		}
+		if pdsCfg.TruststoreType != "" {
+			pdsEnvs["TRUSTSTORE_TYPE"] = pdsCfg.TruststoreType
+		}
+
+		pdsPodMgmtPolicy := "OrderedReady"
+		if pdsCfg.ParallelPodManagement {
+			pdsPodMgmtPolicy = "Parallel"
+		}
+
+		pdsPVCClaim := map[string]any{
+			"accessModes": []string{"ReadWriteOnce"},
+			"resources": map[string]any{
+				"requests": map[string]any{"storage": pdsSpec.StorageSize},
+			},
+		}
+		if pdsSpec.StorageClass != "" {
+			pdsPVCClaim["storageClassName"] = pdsSpec.StorageClass
+		}
+
+		pdsEnvFrom := map[string]any{}
+		pdsSecretRefs := []map[string]any{}
+		if pdsCfg.AdminSecretRef != "" {
+			pdsSecretRefs = append(pdsSecretRefs, map[string]any{"name": pdsCfg.AdminSecretRef})
+		}
+		if pdsCfg.KeystoreSecretRef != "" {
+			pdsSecretRefs = append(pdsSecretRefs, map[string]any{"name": pdsCfg.KeystoreSecretRef})
+		}
+		if pdsCfg.TruststoreSecretRef != "" {
+			pdsSecretRefs = append(pdsSecretRefs, map[string]any{"name": pdsCfg.TruststoreSecretRef})
+		}
+		if len(pdsSecretRefs) > 0 {
+			pdsEnvFrom["secretRef"] = pdsSecretRefs
+		}
+		if pdsCfg.EnvConfigMapRef != "" {
+			pdsEnvFrom["configMapRef"] = []map[string]any{{"name": pdsCfg.EnvConfigMapRef}}
+		}
+
+		pdsIng := resolveIngressSpec(env.Ingress, pdsSpec.Ingress)
+		pdsIng.TLSSecretRef = resolveTLSSecretRef(pdsIng.TLSSecretRef, env.TenantID, "pds")
+		pdsHostname := resolveHostname(pdsIng.Hostname, "pds", env.Domain)
+		var pdsIngressValues map[string]any
+		if ingressEnabled(pdsIng) {
+			pdsIngressValues = buildIngressValues(pdsIng, pdsHostname)
+		} else {
+			pdsIngressValues = map[string]any{"enabled": false}
+		}
+
+		pdsValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "StatefulSet",
+				"statefulSet": map[string]any{
+					"replicas":            pdsSpec.Replicas,
+					"podManagementPolicy": pdsPodMgmtPolicy,
+					"persistentvolume": map[string]any{
+						"enabled": true,
+						"volumes": map[string]any{
+							"out-dir": map[string]any{
+								"mountPath":             "/opt/out",
+								"persistentVolumeClaim": pdsPVCClaim,
+							},
+						},
+					},
+				},
+			},
+			"image":     buildImageValues(pdsSpec.Image, pdsSpec.Version),
+			"container": buildContainerValues(pdsCPU, pdsMem, pdsSpec.Container),
+			"envs":      pdsEnvs,
+			"ingress":   pdsIngressValues,
+		}
+		if len(pdsEnvFrom) > 0 {
+			pdsValues["envFrom"] = pdsEnvFrom
+		}
+		applyWorkloadSecurityContext(pdsValues, products.PingDataSync.Container.SecurityContext)
+		applyRawVolumes(pdsValues, products.PingDataSync.Container)
+		applyServiceAnnotations(pdsValues, resolveServiceAnnotations(env.Services, products.PingDataSync.Service))
+	}
+
+	// Assemble pingdirectoryproxy section
+	var pdpValues map[string]any
+	if products.PingDirectoryProxy == nil {
+		pdpValues = map[string]any{"enabled": false}
+	} else {
+		pdpCPU, pdpMem := TierResources(env.Tier, "pd")
+		pdpCfg := products.PingDirectoryProxy.Config
+		pdpSpec := products.PingDirectoryProxy
+
+		pdpEnvs := map[string]any{}
+		emitServerProfileEnvs(pdpEnvs, pdpCfg.ServerProfile, pdpCfg.ServerProfileLayers)
+		if pdpCfg.AdminUserName != "" {
+			pdpEnvs["ADMIN_USER_NAME"] = pdpCfg.AdminUserName
+		}
+		if pdpCfg.RetryTimeoutSeconds != 0 {
+			pdpEnvs["RETRY_TIMEOUT_SECONDS"] = fmt.Sprintf("%d", pdpCfg.RetryTimeoutSeconds)
+		}
+		if pdpCfg.CertificateNickname != "" {
+			pdpEnvs["CERTIFICATE_NICKNAME"] = pdpCfg.CertificateNickname
+		}
+		if pdpCfg.KeystoreType != "" {
+			pdpEnvs["KEYSTORE_TYPE"] = pdpCfg.KeystoreType
+		}
+		if pdpCfg.TruststoreType != "" {
+			pdpEnvs["TRUSTSTORE_TYPE"] = pdpCfg.TruststoreType
+		}
+		if pdpCfg.PingDirectoryHostname != "" {
+			pdpEnvs["PINGDIRECTORY_HOSTNAME"] = pdpCfg.PingDirectoryHostname
+		}
+		if pdpCfg.PingDirectoryLDAPSPort != 0 {
+			pdpEnvs["PINGDIRECTORY_LDAPS_PORT"] = fmt.Sprintf("%d", pdpCfg.PingDirectoryLDAPSPort)
+		}
+		if pdpCfg.JoinPDTopology {
+			pdpEnvs["JOIN_PD_TOPOLOGY"] = "true"
+		}
+
+		pdpPVCClaim := map[string]any{
+			"accessModes": []string{"ReadWriteOnce"},
+			"resources": map[string]any{
+				"requests": map[string]any{"storage": pdpSpec.StorageSize},
+			},
+		}
+		if pdpSpec.StorageClass != "" {
+			pdpPVCClaim["storageClassName"] = pdpSpec.StorageClass
+		}
+
+		pdpEnvFrom := map[string]any{}
+		pdpSecretRefs := []map[string]any{}
+		if pdpCfg.AdminSecretRef != "" {
+			pdpSecretRefs = append(pdpSecretRefs, map[string]any{"name": pdpCfg.AdminSecretRef})
+		}
+		if pdpCfg.KeystoreSecretRef != "" {
+			pdpSecretRefs = append(pdpSecretRefs, map[string]any{"name": pdpCfg.KeystoreSecretRef})
+		}
+		if pdpCfg.TruststoreSecretRef != "" {
+			pdpSecretRefs = append(pdpSecretRefs, map[string]any{"name": pdpCfg.TruststoreSecretRef})
+		}
+		if len(pdpSecretRefs) > 0 {
+			pdpEnvFrom["secretRef"] = pdpSecretRefs
+		}
+		if pdpCfg.EnvConfigMapRef != "" {
+			pdpEnvFrom["configMapRef"] = []map[string]any{{"name": pdpCfg.EnvConfigMapRef}}
+		}
+
+		pdpIng := resolveIngressSpec(env.Ingress, pdpSpec.Ingress)
+		pdpIng.TLSSecretRef = resolveTLSSecretRef(pdpIng.TLSSecretRef, env.TenantID, "pdp")
+		pdpHostname := resolveHostname(pdpIng.Hostname, "pdp", env.Domain)
+		var pdpIngressValues map[string]any
+		if ingressEnabled(pdpIng) {
+			pdpIngressValues = buildIngressValues(pdpIng, pdpHostname)
+		} else {
+			pdpIngressValues = map[string]any{"enabled": false}
+		}
+
+		pdpValues = map[string]any{
+			"enabled": true,
+			"workload": map[string]any{
+				"type": "StatefulSet",
+				"statefulSet": map[string]any{
+					"replicas":            pdpSpec.Replicas,
+					"podManagementPolicy": "OrderedReady",
+					"persistentvolume": map[string]any{
+						"enabled": true,
+						"volumes": map[string]any{
+							"out-dir": map[string]any{
+								"mountPath":             "/opt/out",
+								"persistentVolumeClaim": pdpPVCClaim,
+							},
+						},
+					},
+				},
+			},
+			"image":     buildImageValues(pdpSpec.Image, pdpSpec.Version),
+			"container": buildContainerValues(pdpCPU, pdpMem, pdpSpec.Container),
+			"envs":      pdpEnvs,
+			"ingress":   pdpIngressValues,
+		}
+		if len(pdpEnvFrom) > 0 {
+			pdpValues["envFrom"] = pdpEnvFrom
+		}
+		applyWorkloadSecurityContext(pdpValues, products.PingDirectoryProxy.Container.SecurityContext)
+		applyRawVolumes(pdpValues, products.PingDirectoryProxy.Container)
+		applyServiceAnnotations(pdpValues, resolveServiceAnnotations(env.Services, products.PingDirectoryProxy.Service))
+	}
+
 	values := map[string]any{
 		"global":              globalValues,
 		"pingfederate-admin":  pfAdminValues,
@@ -897,6 +1210,8 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		"pingaccess-engine":   paEngineValues,
 		"pingauthorize":       pazValues,
 		"pingauthorizepap":    papValues,
+		"pingdatasync":        pdsValues,
+		"pingdirectoryproxy":  pdpValues,
 	}
 
 	// Emit top-level volumes map if defined on the environment.
@@ -954,6 +1269,22 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 	}
 
+	// Merge PingDataSync ValuesOverride
+	if products.PingDataSync != nil {
+		values, err = MergeValues(values, products.PingDataSync.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingDataSync valuesOverride: %w", err)
+		}
+	}
+
+	// Merge PingDirectoryProxy ValuesOverride
+	if products.PingDirectoryProxy != nil {
+		values, err = MergeValues(values, products.PingDirectoryProxy.ValuesOverride)
+		if err != nil {
+			return nil, fmt.Errorf("merge PingDirectoryProxy valuesOverride: %w", err)
+		}
+	}
+
 	return values, nil
 }
 
@@ -976,6 +1307,10 @@ func resolveWaitForKey(application string) string {
 		return "pingauthorizepap"
 	case "pingdataconsole":
 		return "pingdataconsole"
+	case "pingdatasync":
+		return "pingdatasync"
+	case "pingdirectoryproxy":
+		return "pingdirectoryproxy"
 	default:
 		return strings.ToLower(application)
 	}

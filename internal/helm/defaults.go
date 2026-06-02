@@ -81,6 +81,38 @@ func applyDefaults(env *pingonev1alpha1.PingEnvironmentSpec, products *ProductSp
 		}
 	}
 
+	if products.PingDataSync != nil {
+		if products.PingDataSync.Replicas == 0 {
+			products.PingDataSync.Replicas = 1
+		}
+		pds := &products.PingDataSync.Config
+		if pds.AdminUserName == "" {
+			pds.AdminUserName = "admin"
+		}
+		if pds.RetryTimeoutSeconds == 0 {
+			pds.RetryTimeoutSeconds = 180
+		}
+		if products.PingDataSync.StorageSize == "" {
+			products.PingDataSync.StorageSize = "8Gi"
+		}
+	}
+
+	if products.PingDirectoryProxy != nil {
+		if products.PingDirectoryProxy.Replicas == 0 {
+			products.PingDirectoryProxy.Replicas = 1
+		}
+		pdp := &products.PingDirectoryProxy.Config
+		if pdp.AdminUserName == "" {
+			pdp.AdminUserName = "admin"
+		}
+		if pdp.RetryTimeoutSeconds == 0 {
+			pdp.RetryTimeoutSeconds = 180
+		}
+		if products.PingDirectoryProxy.StorageSize == "" {
+			products.PingDirectoryProxy.StorageSize = "8Gi"
+		}
+	}
+
 	if products.PingDirectory == nil {
 		return
 	}
