@@ -305,6 +305,15 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pfCfg.HSMMode != "" {
 			pfEnvs["HSM_MODE"] = pfCfg.HSMMode
 		}
+		if pfCfg.EngineDebug {
+			pfEnvs["PF_ENGINE_DEBUG"] = "true"
+		}
+		if pfCfg.AdminDebug {
+			pfEnvs["PF_ADMIN_DEBUG"] = "true"
+		}
+		if pfCfg.DebugPort != 0 {
+			pfEnvs["PF_DEBUG_PORT"] = fmt.Sprintf("%d", pfCfg.DebugPort)
+		}
 
 		// Logging
 		pfEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/log/server.log"

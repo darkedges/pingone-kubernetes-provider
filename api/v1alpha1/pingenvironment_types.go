@@ -304,6 +304,13 @@ type PingFederateConfig struct {
 	EnginePort int32 `json:"enginePort,omitempty"`
 	// AdminPort is the HTTPS port for the PingFederate admin console/API (PF_ADMIN_PORT). Default: 9999.
 	AdminPort int32 `json:"adminPort,omitempty"`
+	// EngineDebug enables Java remote debugging on the PingFederate engine (PF_ENGINE_DEBUG). Default: false.
+	EngineDebug bool `json:"engineDebug,omitempty"`
+	// AdminDebug enables Java remote debugging on the PingFederate admin (PF_ADMIN_DEBUG). Default: false.
+	AdminDebug bool `json:"adminDebug,omitempty"`
+	// DebugPort is the Java remote debug listener port (PF_DEBUG_PORT). Default: 9030.
+	// Only meaningful when engineDebug or adminDebug is true.
+	DebugPort int32 `json:"debugPort,omitempty"`
 	// EnginePublicHostname is the public hostname of the PF engine node (PF_ENGINE_PUBLIC_HOSTNAME).
 	EnginePublicHostname string `json:"enginePublicHostname,omitempty"`
 	// AdminPublicHostname is the public hostname of the PF admin node (PF_ADMIN_PUBLIC_HOSTNAME).
