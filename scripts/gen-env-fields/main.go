@@ -267,31 +267,44 @@ func parseEnvVars(content string) []envVar {
 	inSection := false
 	inTable := false
 	headerSeen := false
+	sectionLevel := 0 // heading level (#=1, ##=2, etc.) of the env-vars section
 
 	colVar, colDef, colDesc := -1, -1, -1
 
 	backtickWord := regexp.MustCompile("`([^`]+)`")
 	defaultInDesc := regexp.MustCompile(`(?i)default[s]?:\s*` + "`([^`]*)`")
-	sectionRe := regexp.MustCompile(`(?i)^#{1,4}\s+environment\s+variables`)
-	nextSectionRe := regexp.MustCompile(`^#{1,3} `)
+	sectionRe := regexp.MustCompile(`(?i)^(#{1,4})\s+environment\s+variables`)
+	headingRe := regexp.MustCompile(`^(#{1,6})\s`)
 
 	var vars []envVar
 
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
 
-		// Enter environment variables section
-		if sectionRe.MatchString(line) {
+		// Enter environment variables section; record its heading level.
+		if m := sectionRe.FindStringSubmatch(line); m != nil {
 			inSection = true
+			sectionLevel = len(m[1])
 			inTable = false
 			headerSeen = false
 			colVar, colDef, colDesc = -1, -1, -1
 			continue
 		}
 
-		// Exit on next same/higher-level section heading
-		if inSection && nextSectionRe.MatchString(line) && !sectionRe.MatchString(line) {
-			break
+		// Exit only when we hit a heading at the same or higher level
+		// (fewer or equal #s) — subsections within the env-vars block are fine.
+		if inSection {
+			if m := headingRe.FindStringSubmatch(line); m != nil {
+				if len(m[1]) <= sectionLevel {
+					break
+				}
+				// It's a deeper subsection — reset table state so we re-detect
+				// the header row of the new sub-table.
+				inTable = false
+				headerSeen = false
+				colVar, colDef, colDesc = -1, -1, -1
+				continue
+			}
 		}
 
 		if !inSection {
