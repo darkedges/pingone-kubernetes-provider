@@ -106,13 +106,11 @@ var skipExact = map[string]bool{
 	// build metadata
 	"PING_PRODUCT_VERSION": true,
 
-	// handled by typed Kubernetes Secret refs in the operator (not plain env vars):
+	// credentials — never surfaced as plain string fields
 	"ROOT_USER_PASSWORD_FILE": true,
 	"ADMIN_USER_PASSWORD_FILE": true,
 	"ENCRYPTION_PASSWORD_FILE": true,
-	"KEYSTORE_FILE": true, "KEYSTORE_PIN_FILE": true,
-	"TRUSTSTORE_FILE": true, "TRUSTSTORE_PIN_FILE": true,
-	"PF_LDAP_PASSWORD": true, // credential — handled via LDAPSecretRef
+	"PF_LDAP_PASSWORD": true,
 	"PING_IDENTITY_ACCEPT_EULA": true,
 
 	// other-product hostnames that appear in cross-product READMEs
