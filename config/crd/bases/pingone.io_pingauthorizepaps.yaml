@@ -57,6 +57,23 @@ spec:
                   clientID:
                     description: ClientID is the OIDC client identifier (PING_CLIENT_ID).
                     type: string
+                  dbAdminUsername:
+                    description: DBAdminUsername is the database administrator username
+                      for DB creation/upgrade (PING_DB_ADMIN_USERNAME).
+                    type: string
+                  dbAppUsername:
+                    description: DBAppUsername is the runtime database username for
+                      the Policy Editor (PING_DB_APP_USERNAME).
+                    type: string
+                  dbConnectionString:
+                    description: |-
+                      DBConnectionString is the JDBC connection string for the policy database (PING_DB_CONNECTION_STRING).
+                      Use "jdbc:postgresql://<host>:<port>/<db>" for PostgreSQL. Defaults to embedded H2.
+                    type: string
+                  dbSecretRef:
+                    description: DBSecretRef is the name of a Secret containing PING_DB_ADMIN_PASSWORD
+                      and PING_DB_APP_PASSWORD.
+                    type: string
                   enableAPIHTTPCache:
                     description: 'EnableAPIHTTPCache controls HTTP API caching (PING_ENABLE_API_HTTP_CACHE).
                       Default: true.'
@@ -69,6 +86,14 @@ spec:
                     description: |-
                       ExternalBaseURL is the external hostname and port for PAP API access (PING_EXTERNAL_BASE_URL).
                       Derived as https://paz-pap.<spec.domain> when spec.domain is set and this is empty.
+                    type: string
+                  keystoreSecretRef:
+                    description: KeystoreSecretRef is the name of a Secret containing
+                      the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+                    type: string
+                  keystoreType:
+                    description: 'KeystoreType is the format of the keystore (KEYSTORE_TYPE).
+                      One of: jks, pkcs12.'
                     type: string
                   maxHeapSize:
                     description: 'MaxHeapSize is the JVM heap size (MAX_HEAP_SIZE).

@@ -100,11 +100,26 @@ spec:
                   PingDataConsole configures the PingDataConsole web UI.
                   Only deployed when this section is explicitly present and a PingDirectory CR references this environment.
                 properties:
+                  brandingAppName:
+                    description: |-
+                      BrandingAppName sets the application name shown on the sign-on page and banner (BRANDING_APP_NAME).
+                      Default: "PingDirectory Admin Console".
+                    type: string
                   enabled:
                     description: |-
                       Enabled controls whether PingDataConsole is deployed.
                       Defaults to true when this section is present; set to false to disable.
                     type: boolean
+                  httpPort:
+                    description: 'HTTPPort is the HTTP listen port for PingDataConsole
+                      (HTTP_PORT). Default: 8080.'
+                    format: int32
+                    type: integer
+                  httpsPort:
+                    description: 'HTTPSPort is the HTTPS listen port for PingDataConsole
+                      (HTTPS_PORT). Default: 8443.'
+                    format: int32
+                    type: integer
                   image:
                     description: Image is the container image repository. Omit to
                       use the chart's default.
@@ -138,6 +153,10 @@ spec:
                           name for this component.
                         type: string
                     type: object
+                  systemReadOnly:
+                    description: 'SystemReadOnly puts the console in read-only mode
+                      when true (SYSTEM_READ_ONLY). Default: false.'
+                    type: boolean
                   version:
                     description: Version is the container image tag. Omit to use the
                       chart's default tag.

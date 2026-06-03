@@ -62,17 +62,35 @@ spec:
                     description: 'AdminUserName is the replication admin user (ADMIN_USER_NAME).
                       Default: admin.'
                     type: string
+                  certificateNickname:
+                    description: CertificateNickname is the alias of the certificate
+                      to use within the keystore (CERTIFICATE_NICKNAME).
+                    type: string
+                  encryptionSecretRef:
+                    description: EncryptionSecretRef is the name of a Secret containing
+                      the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
+                    type: string
                   envConfigMapRef:
                     description: EnvConfigMapRef is the name of a ConfigMap with additional
                       env vars to inject.
                     type: string
                   failOnDisabledBaseDN:
                     description: 'FailOnDisabledBaseDN fails the container if USER_BASE_DN
-                      replication is not enabled. Default: false.'
+                      replication is not enabled (FAIL_ON_DISABLED_BASE_DN). Default:
+                      false.'
+                    type: boolean
+                  failOnUnsuccessfulRemoveDefunct:
+                    description: 'FailOnUnsuccessfulRemoveDefunct fails the container
+                      if a previous remove-defunct-server call did not complete successfully
+                      (FAIL_ON_UNSUCCESSFUL_REMOVE_DEFUNCT). Default: false.'
                     type: boolean
                   fipsModeOn:
                     description: 'FIPSModeOn enables Bouncy Castle FIPS mode (FIPS_MODE_ON).
                       Default: false.'
+                    type: boolean
+                  forceDataReimport:
+                    description: 'ForceDataReimport forces a backend data export and
+                      re-import on restart (PD_FORCE_DATA_REIMPORT). Default: false.'
                     type: boolean
                   httpsPort:
                     description: 'HTTPSPort is the container HTTPS port (HTTPS_PORT).
@@ -81,7 +99,11 @@ spec:
                     type: integer
                   keystoreSecretRef:
                     description: KeystoreSecretRef is the name of a Secret containing
-                      the keystore for TLS.
+                      the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+                    type: string
+                  keystoreType:
+                    description: 'KeystoreType is the format of the keystore (KEYSTORE_TYPE).
+                      One of: jks, pkcs12, pem, bcfks.'
                     type: string
                   ldapPort:
                     description: 'LDAPPort is the container LDAP port (LDAP_PORT).
@@ -93,6 +115,10 @@ spec:
                       Default: 1636.'
                     format: int32
                     type: integer
+                  loadBalancingAlgorithmNames:
+                    description: LoadBalancingAlgorithmNames is a semicolon-separated
+                      list of load-balancing algorithm names (LOAD_BALANCING_ALGORITHM_NAMES).
+                    type: string
                   makeLdifUsers:
                     description: 'MakeLdifUsers is the number of users to auto-generate
                       on first start (MAKELDIF_USERS). Default: 0.'
@@ -115,6 +141,10 @@ spec:
                       communication (REPLICATION_PORT). Default: 8989.'
                     format: int32
                     type: integer
+                  restrictedBaseDNs:
+                    description: RestrictedBaseDNs is a semicolon-separated list of
+                      base DNs used for entry-balancing configuration (RESTRICTED_BASE_DNS).
+                    type: string
                   retryTimeoutSeconds:
                     description: 'RetryTimeoutSeconds is the timeout for dsreplication
                       operations (RETRY_TIMEOUT_SECONDS). Default: 180.'
@@ -171,6 +201,18 @@ spec:
                       - name
                       type: object
                     type: array
+                  skipWaitForDNS:
+                    description: 'SkipWaitForDNS skips the DNS readiness check on
+                      startup (SKIP_WAIT_FOR_DNS). Default: false.'
+                    type: boolean
+                  truststoreSecretRef:
+                    description: TruststoreSecretRef is the name of a Secret containing
+                      the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+                    type: string
+                  truststoreType:
+                    description: 'TruststoreType is the format of the truststore (TRUSTSTORE_TYPE).
+                      One of: jks, pkcs12, pem, bcfks.'
+                    type: string
                   userBaseDN:
                     description: 'UserBaseDN is the base DN for user data (USER_BASE_DN).
                       Default: dc=example,dc=com.'
