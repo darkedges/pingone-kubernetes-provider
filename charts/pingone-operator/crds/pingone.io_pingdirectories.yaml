@@ -97,6 +97,13 @@ spec:
                       Default: 1443.'
                     format: int32
                     type: integer
+                  keystoreFile:
+                    description: KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+                    type: string
+                  keystorePinFile:
+                    description: KeystorePinFile is the path to the keystore PIN file
+                      (KEYSTORE_PIN_FILE).
+                    type: string
                   keystoreSecretRef:
                     description: KeystoreSecretRef is the name of a Secret containing
                       the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
@@ -205,6 +212,14 @@ spec:
                     description: 'SkipWaitForDNS skips the DNS readiness check on
                       startup (SKIP_WAIT_FOR_DNS). Default: false.'
                     type: boolean
+                  truststoreFile:
+                    description: TruststoreFile is the path to the truststore file
+                      (TRUSTSTORE_FILE).
+                    type: string
+                  truststorePinFile:
+                    description: TruststorePinFile is the path to the truststore PIN
+                      file (TRUSTSTORE_PIN_FILE).
+                    type: string
                   truststoreSecretRef:
                     description: TruststoreSecretRef is the name of a Secret containing
                       the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).

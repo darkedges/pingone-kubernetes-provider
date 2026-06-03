@@ -87,6 +87,13 @@ spec:
                       ExternalBaseURL is the external hostname and port for PAP API access (PING_EXTERNAL_BASE_URL).
                       Derived as https://paz-pap.<spec.domain> when spec.domain is set and this is empty.
                     type: string
+                  keystoreFile:
+                    description: KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+                    type: string
+                  keystorePinFile:
+                    description: KeystorePinFile is the path to the keystore PIN file
+                      (KEYSTORE_PIN_FILE).
+                    type: string
                   keystoreSecretRef:
                     description: KeystoreSecretRef is the name of a Secret containing
                       the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).

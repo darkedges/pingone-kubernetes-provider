@@ -503,8 +503,20 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pdCfg.CertificateNickname != "" {
 			pdEnvs["CERTIFICATE_NICKNAME"] = pdCfg.CertificateNickname
 		}
+		if pdCfg.KeystoreFile != "" {
+			pdEnvs["KEYSTORE_FILE"] = pdCfg.KeystoreFile
+		}
+		if pdCfg.KeystorePinFile != "" {
+			pdEnvs["KEYSTORE_PIN_FILE"] = pdCfg.KeystorePinFile
+		}
 		if pdCfg.KeystoreType != "" {
 			pdEnvs["KEYSTORE_TYPE"] = pdCfg.KeystoreType
+		}
+		if pdCfg.TruststoreFile != "" {
+			pdEnvs["TRUSTSTORE_FILE"] = pdCfg.TruststoreFile
+		}
+		if pdCfg.TruststorePinFile != "" {
+			pdEnvs["TRUSTSTORE_PIN_FILE"] = pdCfg.TruststorePinFile
 		}
 		if pdCfg.TruststoreType != "" {
 			pdEnvs["TRUSTSTORE_TYPE"] = pdCfg.TruststoreType
@@ -932,6 +944,12 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if papCfg.DBAppUsername != "" {
 			papEnvs["PING_DB_APP_USERNAME"] = papCfg.DBAppUsername
 		}
+		if papCfg.KeystoreFile != "" {
+			papEnvs["KEYSTORE_FILE"] = papCfg.KeystoreFile
+		}
+		if papCfg.KeystorePinFile != "" {
+			papEnvs["KEYSTORE_PIN_FILE"] = papCfg.KeystorePinFile
+		}
 		if papCfg.KeystoreType != "" {
 			papEnvs["KEYSTORE_TYPE"] = papCfg.KeystoreType
 		}
@@ -1014,8 +1032,20 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pdsCfg.CertificateNickname != "" {
 			pdsEnvs["CERTIFICATE_NICKNAME"] = pdsCfg.CertificateNickname
 		}
+		if pdsCfg.KeystoreFile != "" {
+			pdsEnvs["KEYSTORE_FILE"] = pdsCfg.KeystoreFile
+		}
+		if pdsCfg.KeystorePinFile != "" {
+			pdsEnvs["KEYSTORE_PIN_FILE"] = pdsCfg.KeystorePinFile
+		}
 		if pdsCfg.KeystoreType != "" {
 			pdsEnvs["KEYSTORE_TYPE"] = pdsCfg.KeystoreType
+		}
+		if pdsCfg.TruststoreFile != "" {
+			pdsEnvs["TRUSTSTORE_FILE"] = pdsCfg.TruststoreFile
+		}
+		if pdsCfg.TruststorePinFile != "" {
+			pdsEnvs["TRUSTSTORE_PIN_FILE"] = pdsCfg.TruststorePinFile
 		}
 		if pdsCfg.TruststoreType != "" {
 			pdsEnvs["TRUSTSTORE_TYPE"] = pdsCfg.TruststoreType
@@ -1115,8 +1145,20 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pdpCfg.CertificateNickname != "" {
 			pdpEnvs["CERTIFICATE_NICKNAME"] = pdpCfg.CertificateNickname
 		}
+		if pdpCfg.KeystoreFile != "" {
+			pdpEnvs["KEYSTORE_FILE"] = pdpCfg.KeystoreFile
+		}
+		if pdpCfg.KeystorePinFile != "" {
+			pdpEnvs["KEYSTORE_PIN_FILE"] = pdpCfg.KeystorePinFile
+		}
 		if pdpCfg.KeystoreType != "" {
 			pdpEnvs["KEYSTORE_TYPE"] = pdpCfg.KeystoreType
+		}
+		if pdpCfg.TruststoreFile != "" {
+			pdpEnvs["TRUSTSTORE_FILE"] = pdpCfg.TruststoreFile
+		}
+		if pdpCfg.TruststorePinFile != "" {
+			pdpEnvs["TRUSTSTORE_PIN_FILE"] = pdpCfg.TruststorePinFile
 		}
 		if pdpCfg.TruststoreType != "" {
 			pdpEnvs["TRUSTSTORE_TYPE"] = pdpCfg.TruststoreType

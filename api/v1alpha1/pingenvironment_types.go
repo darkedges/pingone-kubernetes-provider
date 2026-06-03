@@ -247,10 +247,14 @@ type PingAuthorizePAPConfig struct {
 	DBAppUsername string `json:"dbAppUsername,omitempty"`
 	// DBSecretRef is the name of a Secret containing PING_DB_ADMIN_PASSWORD and PING_DB_APP_PASSWORD.
 	DBSecretRef string `json:"dbSecretRef,omitempty"`
-	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
-	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+	KeystoreFile string `json:"keystoreFile,omitempty"`
+	// KeystorePinFile is the path to the keystore PIN file (KEYSTORE_PIN_FILE).
+	KeystorePinFile string `json:"keystorePinFile,omitempty"`
 	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12.
 	KeystoreType string `json:"keystoreType,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
 	// SharedSecretRef is the name of a Secret containing DECISION_POINT_SHARED_SECRET for PAZ integration.
 	SharedSecretRef string `json:"sharedSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
@@ -440,18 +444,26 @@ type PingDirectoryConfig struct {
 	RestrictedBaseDNs string `json:"restrictedBaseDNs,omitempty"`
 	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
 	CertificateNickname string `json:"certificateNickname,omitempty"`
-	// EncryptionSecretRef is the name of a Secret containing the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
-	EncryptionSecretRef string `json:"encryptionSecretRef,omitempty"`
+	// KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+	KeystoreFile string `json:"keystoreFile,omitempty"`
+	// KeystorePinFile is the path to the keystore PIN file (KEYSTORE_PIN_FILE).
+	KeystorePinFile string `json:"keystorePinFile,omitempty"`
 	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
 	KeystoreType string `json:"keystoreType,omitempty"`
-	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
-	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// TruststoreFile is the path to the truststore file (TRUSTSTORE_FILE).
+	TruststoreFile string `json:"truststoreFile,omitempty"`
+	// TruststorePinFile is the path to the truststore PIN file (TRUSTSTORE_PIN_FILE).
+	TruststorePinFile string `json:"truststorePinFile,omitempty"`
 	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
 	TruststoreType string `json:"truststoreType,omitempty"`
-	// AdminSecretRef is the name of a Secret containing admin credentials.
-	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// EncryptionSecretRef is the name of a Secret containing the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
+	EncryptionSecretRef string `json:"encryptionSecretRef,omitempty"`
 	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
 	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// AdminSecretRef is the name of a Secret containing admin credentials.
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -555,8 +567,16 @@ type PingDataSyncConfig struct {
 	SkipWaitForDNS bool `json:"skipWaitForDNS,omitempty"`
 	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
 	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+	KeystoreFile string `json:"keystoreFile,omitempty"`
+	// KeystorePinFile is the path to the keystore PIN file (KEYSTORE_PIN_FILE).
+	KeystorePinFile string `json:"keystorePinFile,omitempty"`
 	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
 	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreFile is the path to the truststore file (TRUSTSTORE_FILE).
+	TruststoreFile string `json:"truststoreFile,omitempty"`
+	// TruststorePinFile is the path to the truststore PIN file (TRUSTSTORE_PIN_FILE).
+	TruststorePinFile string `json:"truststorePinFile,omitempty"`
 	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
 	TruststoreType string `json:"truststoreType,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials (ROOT_USER_PASSWORD_FILE / ADMIN_USER_PASSWORD_FILE).
@@ -609,8 +629,16 @@ type PingDirectoryProxyConfig struct {
 	RetryTimeoutSeconds int32 `json:"retryTimeoutSeconds,omitempty"`
 	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
 	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+	KeystoreFile string `json:"keystoreFile,omitempty"`
+	// KeystorePinFile is the path to the keystore PIN file (KEYSTORE_PIN_FILE).
+	KeystorePinFile string `json:"keystorePinFile,omitempty"`
 	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
 	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreFile is the path to the truststore file (TRUSTSTORE_FILE).
+	TruststoreFile string `json:"truststoreFile,omitempty"`
+	// TruststorePinFile is the path to the truststore PIN file (TRUSTSTORE_PIN_FILE).
+	TruststorePinFile string `json:"truststorePinFile,omitempty"`
 	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
 	TruststoreType string `json:"truststoreType,omitempty"`
 	// PingDirectoryHostname is the PingDirectory hostname used for automatic server discovery (PINGDIRECTORY_HOSTNAME).
