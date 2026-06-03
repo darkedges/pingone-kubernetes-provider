@@ -18,29 +18,8 @@ func applyDefaults(env *pingonev1alpha1.PingEnvironmentSpec, products *ProductSp
 		if pf.AdminPort == 0 {
 			pf.AdminPort = 9999
 		}
-		if pf.OperationalMode == "" {
-			pf.OperationalMode = "STANDALONE"
-		}
-		if pf.ConsoleAuthentication == "" {
-			pf.ConsoleAuthentication = "native"
-		}
-		if pf.AdminAPIAuthentication == "" {
-			pf.AdminAPIAuthentication = "native"
-		}
-		if pf.LDAPType == "" {
-			pf.LDAPType = "PingDirectory"
-		}
-		if pf.ProvisionerMode == "" {
-			pf.ProvisionerMode = "OFF"
-		}
-		if pf.ProvisionerNodeID == 0 {
-			pf.ProvisionerNodeID = 1
-		}
 		if pf.JavaRAMPercentage == "" {
 			pf.JavaRAMPercentage = "75.0"
-		}
-		if pf.HSMMode == "" {
-			pf.HSMMode = "OFF"
 		}
 	}
 
@@ -54,9 +33,6 @@ func applyDefaults(env *pingonev1alpha1.PingEnvironmentSpec, products *ProductSp
 		}
 		if pa.EnginePort == 0 {
 			pa.EnginePort = 3000
-		}
-		if pa.OperationalMode == "" {
-			pa.OperationalMode = "STANDALONE"
 		}
 		if pa.JavaRAMPercentage == "" {
 			pa.JavaRAMPercentage = "60.0"
@@ -102,6 +78,38 @@ func applyDefaults(env *pingonev1alpha1.PingEnvironmentSpec, products *ProductSp
 		if pap.EnableAPIHTTPCache == nil {
 			t := true
 			pap.EnableAPIHTTPCache = &t
+		}
+	}
+
+	if products.PingDataSync != nil {
+		if products.PingDataSync.Replicas == 0 {
+			products.PingDataSync.Replicas = 1
+		}
+		pds := &products.PingDataSync.Config
+		if pds.AdminUserName == "" {
+			pds.AdminUserName = "admin"
+		}
+		if pds.RetryTimeoutSeconds == 0 {
+			pds.RetryTimeoutSeconds = 180
+		}
+		if products.PingDataSync.StorageSize == "" {
+			products.PingDataSync.StorageSize = "8Gi"
+		}
+	}
+
+	if products.PingDirectoryProxy != nil {
+		if products.PingDirectoryProxy.Replicas == 0 {
+			products.PingDirectoryProxy.Replicas = 1
+		}
+		pdp := &products.PingDirectoryProxy.Config
+		if pdp.AdminUserName == "" {
+			pdp.AdminUserName = "admin"
+		}
+		if pdp.RetryTimeoutSeconds == 0 {
+			pdp.RetryTimeoutSeconds = 180
+		}
+		if products.PingDirectoryProxy.StorageSize == "" {
+			products.PingDirectoryProxy.StorageSize = "8Gi"
 		}
 	}
 

@@ -4,7 +4,7 @@ package v1alpha1
 
 import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // DeepCopyInto copies all properties of this object into another object of the same type.
@@ -68,6 +68,10 @@ func (in *PingFederateConfig) DeepCopyInto(out *PingFederateConfig) {
 		*out = make([]ServerProfileLayerSpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.EnableAutomaticHeapDump != nil {
+		x := *in.EnableAutomaticHeapDump
+		out.EnableAutomaticHeapDump = &x
+	}
 }
 
 // DeepCopy creates a deep copy of PingFederateConfig.
@@ -76,6 +80,96 @@ func (in *PingFederateConfig) DeepCopy() *PingFederateConfig {
 		return nil
 	}
 	out := new(PingFederateConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDataSyncConfig) DeepCopyInto(out *PingDataSyncConfig) {
+	*out = *in
+	if in.ServerProfile != nil {
+		in, out := &in.ServerProfile, &out.ServerProfile
+		*out = new(ServerProfileSpec)
+		**out = **in
+	}
+	if in.ServerProfileLayers != nil {
+		in, out := &in.ServerProfileLayers, &out.ServerProfileLayers
+		*out = make([]ServerProfileLayerSpec, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopy creates a deep copy of PingDataSyncConfig.
+func (in *PingDataSyncConfig) DeepCopy() *PingDataSyncConfig {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDataSyncConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDataSyncSpec) DeepCopyInto(out *PingDataSyncSpec) {
+	*out = *in
+	in.Ingress.DeepCopyInto(&out.Ingress)
+	in.Service.DeepCopyInto(&out.Service)
+	in.Container.DeepCopyInto(&out.Container)
+	in.Config.DeepCopyInto(&out.Config)
+	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)
+}
+
+// DeepCopy creates a deep copy of PingDataSyncSpec.
+func (in *PingDataSyncSpec) DeepCopy() *PingDataSyncSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDataSyncSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectoryProxyConfig) DeepCopyInto(out *PingDirectoryProxyConfig) {
+	*out = *in
+	if in.ServerProfile != nil {
+		in, out := &in.ServerProfile, &out.ServerProfile
+		*out = new(ServerProfileSpec)
+		**out = **in
+	}
+	if in.ServerProfileLayers != nil {
+		in, out := &in.ServerProfileLayers, &out.ServerProfileLayers
+		*out = make([]ServerProfileLayerSpec, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopy creates a deep copy of PingDirectoryProxyConfig.
+func (in *PingDirectoryProxyConfig) DeepCopy() *PingDirectoryProxyConfig {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectoryProxyConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type.
+func (in *PingDirectoryProxySpec) DeepCopyInto(out *PingDirectoryProxySpec) {
+	*out = *in
+	in.Ingress.DeepCopyInto(&out.Ingress)
+	in.Service.DeepCopyInto(&out.Service)
+	in.Container.DeepCopyInto(&out.Container)
+	in.Config.DeepCopyInto(&out.Config)
+	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)
+}
+
+// DeepCopy creates a deep copy of PingDirectoryProxySpec.
+func (in *PingDirectoryProxySpec) DeepCopy() *PingDirectoryProxySpec {
+	if in == nil {
+		return nil
+	}
+	out := new(PingDirectoryProxySpec)
 	in.DeepCopyInto(out)
 	return out
 }
@@ -188,10 +282,37 @@ func (in *PingEnvironmentList) DeepCopyObject() runtime.Object {
 func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 	*out = *in
 	in.Ingress.DeepCopyInto(&out.Ingress)
+	in.Services.DeepCopyInto(&out.Services)
 	if in.PingDataConsole != nil {
 		in, out := &in.PingDataConsole, &out.PingDataConsole
 		*out = new(PingDataConsoleSpec)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Vault != nil {
+		in, out := &in.Vault, &out.Vault
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ContainerSecurityContext != nil {
+		in, out := &in.ContainerSecurityContext, &out.ContainerSecurityContext
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = new(ResourceRequirementsSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	in.Volumes.DeepCopyInto(&out.Volumes)
+	if in.IncludeVolumes != nil {
+		in, out := &in.IncludeVolumes, &out.IncludeVolumes
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 }
 
@@ -232,6 +353,7 @@ func (in *PingFederateSpec) DeepCopyInto(out *PingFederateSpec) {
 	*out = *in
 	in.EngineIngress.DeepCopyInto(&out.EngineIngress)
 	in.AdminIngress.DeepCopyInto(&out.AdminIngress)
+	in.Service.DeepCopyInto(&out.Service)
 	in.Container.DeepCopyInto(&out.Container)
 	in.Config.DeepCopyInto(&out.Config)
 	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)
@@ -250,6 +372,7 @@ func (in *PingFederateSpec) DeepCopy() *PingFederateSpec {
 // DeepCopyInto copies all properties of this object into another object of the same type.
 func (in *PingDirectorySpec) DeepCopyInto(out *PingDirectorySpec) {
 	*out = *in
+	in.Service.DeepCopyInto(&out.Service)
 	in.Container.DeepCopyInto(&out.Container)
 	in.Config.DeepCopyInto(&out.Config)
 	in.ValuesOverride.DeepCopyInto(&out.ValuesOverride)

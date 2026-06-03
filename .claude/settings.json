@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wait)",
+      "Bash(git commit -m ' *)",
+      "Bash(mkdir -p /tmp/helm-cache && helm pull ping-devops --repo https://helm.pingidentity.com/ --version 0.12.2 --destination /tmp/helm-cache/ 2>&1 && ls /tmp/helm-cache/)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(python3 -c \"import json,os; print(json.loads(os.environ.get('CLAUDE_TOOL_INPUT','{}')).get('file_path',''))\" 2>/dev/null); case \"$f\" in *api/v1alpha1/*_types.go) make manifests helm-sync-crds 2>&1;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}

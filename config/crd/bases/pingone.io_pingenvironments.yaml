@@ -52,11 +52,24 @@ spec:
           spec:
             description: PingEnvironmentSpec defines the desired state of PingEnvironment.
             properties:
+              containerSecurityContext:
+                description: |-
+                  ContainerSecurityContext sets the container-level securityContext for all product workloads.
+                  Per-product container.containerSecurityContext overrides this.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               domain:
                 description: |-
                   Domain is the base DNS domain for this environment. Component hostnames are derived
                   from this value when not explicitly set (e.g. pf.<domain>, pf-admin.<domain>).
                 type: string
+              includeVolumes:
+                description: |-
+                  IncludeVolumes lists volume names (from spec.volumes) to mount into every product's
+                  workload in this environment. Maps to global.includeVolumes in the ping-devops chart.
+                items:
+                  type: string
+                type: array
               ingress:
                 description: |-
                   Ingress holds shared ingress settings inherited by all components.
@@ -130,6 +143,44 @@ spec:
                       chart's default tag.
                     type: string
                 type: object
+              resources:
+                description: |-
+                  Resources sets default CPU/memory requests and limits for all product containers.
+                  Per-product container.resources overrides this. Both are overridden by tier defaults
+                  when neither is set.
+                properties:
+                  limits:
+                    additionalProperties:
+                      type: string
+                    description: Limits are the maximum resources the container may
+                      use.
+                    type: object
+                  requests:
+                    additionalProperties:
+                      type: string
+                    description: Requests are the minimum resources the container
+                      requires.
+                    type: object
+                type: object
+              securityContext:
+                description: |-
+                  SecurityContext sets the pod-level securityContext for all product workloads.
+                  Per-product container.securityContext overrides this.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              services:
+                description: |-
+                  Services holds shared Kubernetes Service settings inherited by all components.
+                  Per-product service.annotations take precedence on conflict.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Annotations are merged into every component's Service resources.
+                      Per-component service.annotations take precedence on conflict.
+                    type: object
+                type: object
               targetNamespace:
                 description: TargetNamespace is the namespace to deploy into; defaults
                   to metadata.namespace.
@@ -141,6 +192,20 @@ spec:
               tier:
                 description: 'Tier is one of: development, staging, production.'
                 type: string
+              vault:
+                description: |-
+                  Vault configures HashiCorp Vault Agent injection for all products in this environment.
+                  Maps to global.vault in the ping-devops Helm chart.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              volumes:
+                description: |-
+                  Volumes defines named pod-level volumes available to all product workloads in this
+                  environment. Each key is the volume name; the value is any valid Kubernetes volume spec
+                  (emptyDir, secret, configMap, hostPath, etc.). Products opt in by listing names under
+                  container.includeVolumes, or use IncludeVolumes to mount them in every product.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
             - tenantId
             - tier

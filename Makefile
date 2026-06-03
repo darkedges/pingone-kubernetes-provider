@@ -153,7 +153,7 @@ helm-lint: ## Lint the Helm chart
 	helm lint $(HELM_CHART_DIR)
 
 .PHONY: helm-package
-helm-package: ## Package the Helm chart into dist/
+helm-package: helm-sync-crds ## Package the Helm chart into dist/
 	mkdir -p $(HELM_PACKAGE_DIR)
 	helm package $(HELM_CHART_DIR) --destination $(HELM_PACKAGE_DIR)
 

@@ -180,6 +180,61 @@ spec:
                 description: Container holds container-level settings such as service
                   wait conditions.
                 properties:
+                  containerSecurityContext:
+                    description: ContainerSecurityContext overrides the container-level
+                      securityContext for this product.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  includeVolumes:
+                    description: |-
+                      IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
+                      to mount into this product's pod.
+                    items:
+                      type: string
+                    type: array
+                  resources:
+                    description: |-
+                      Resources overrides the CPU/memory requests and limits for this product's containers.
+                      Takes precedence over the tier-based defaults and PingEnvironment.spec.resources.
+                    properties:
+                      limits:
+                        additionalProperties:
+                          type: string
+                        description: Limits are the maximum resources the container
+                          may use.
+                        type: object
+                      requests:
+                        additionalProperties:
+                          type: string
+                        description: Requests are the minimum resources the container
+                          requires.
+                        type: object
+                    type: object
+                  securityContext:
+                    description: SecurityContext overrides the pod-level securityContext
+                      for this product's workload.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  volumeMounts:
+                    description: |-
+                      VolumeMounts is a list of additional container volumeMounts for this product's workload.
+                      Each element is a standard Kubernetes volumeMount spec (name, mountPath, subPath, etc.).
+                      Maps directly to the ping-devops sub-chart volumeMounts array.
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
+                    x-kubernetes-preserve-unknown-fields: true
+                  volumes:
+                    description: |-
+                      Volumes is a list of additional pod-level volumes for this product's workload.
+                      Each element is a standard Kubernetes volume spec (name, configMap, secret, emptyDir, etc.).
+                      Maps directly to the ping-devops sub-chart volumes array.
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
+                    x-kubernetes-preserve-unknown-fields: true
                   waitFor:
                     description: WaitFor is a list of services this container waits
                       for before starting.
@@ -223,6 +278,18 @@ spec:
                   Default: 1.'
                 format: int32
                 type: integer
+              service:
+                description: |-
+                  Service holds Kubernetes Service customisation for this product.
+                  Annotations are merged on top of spec.services.annotations.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations are merged on top of the global service
+                      annotations for this component.
+                    type: object
+                type: object
               storageClass:
                 description: StorageClass is the storage class used for PersistentVolumeClaims.
                 type: string

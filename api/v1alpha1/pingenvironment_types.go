@@ -5,6 +5,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// GlobalServicesSpec holds Kubernetes Service settings shared across all components.
+// Per-component ServiceSpec annotations take precedence on conflict.
+type GlobalServicesSpec struct {
+	// Annotations are merged into every component's Service resources.
+	// Per-component service.annotations take precedence on conflict.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// ServiceSpec holds per-product Kubernetes Service customisation.
+type ServiceSpec struct {
+	// Annotations are merged on top of the global service annotations for this component.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 // GlobalIngressSpec holds ingress settings shared across all components.
 // Per-component IngressSpec fields override these when set.
 type GlobalIngressSpec struct {
@@ -48,10 +62,40 @@ type WaitForSpec struct {
 	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty"`
 }
 
+// ResourceRequirementsSpec defines CPU and memory requests and limits.
+type ResourceRequirementsSpec struct {
+	// Limits are the maximum resources the container may use.
+	Limits map[string]string `json:"limits,omitempty"`
+	// Requests are the minimum resources the container requires.
+	Requests map[string]string `json:"requests,omitempty"`
+}
+
 // ContainerSpec holds container-level settings that apply on top of the chart defaults.
 type ContainerSpec struct {
 	// WaitFor is a list of services this container waits for before starting.
 	WaitFor []WaitForSpec `json:"waitFor,omitempty"`
+	// IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
+	// to mount into this product's pod.
+	IncludeVolumes []string `json:"includeVolumes,omitempty"`
+	// Resources overrides the CPU/memory requests and limits for this product's containers.
+	// Takes precedence over the tier-based defaults and PingEnvironment.spec.resources.
+	Resources *ResourceRequirementsSpec `json:"resources,omitempty"`
+	// SecurityContext overrides the pod-level securityContext for this product's workload.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	SecurityContext *runtime.RawExtension `json:"securityContext,omitempty"`
+	// ContainerSecurityContext overrides the container-level securityContext for this product.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ContainerSecurityContext *runtime.RawExtension `json:"containerSecurityContext,omitempty"`
+	// Volumes is a list of additional pod-level volumes for this product's workload.
+	// Each element is a standard Kubernetes volume spec (name, configMap, secret, emptyDir, etc.).
+	// Maps directly to the ping-devops sub-chart volumes array.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Volumes []runtime.RawExtension `json:"volumes,omitempty"`
+	// VolumeMounts is a list of additional container volumeMounts for this product's workload.
+	// Each element is a standard Kubernetes volumeMount spec (name, mountPath, subPath, etc.).
+	// Maps directly to the ping-devops sub-chart volumeMounts array.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	VolumeMounts []runtime.RawExtension `json:"volumeMounts,omitempty"`
 }
 
 // ServerProfileSpec defines the base server profile for a container.
@@ -109,6 +153,8 @@ type PingAccessConfig struct {
 	FIPSModeOn bool `json:"fipsModeOn,omitempty"`
 	// JavaRAMPercentage is the percentage of container memory for the JVM (JAVA_RAM_PERCENTAGE). Default: 60.0.
 	JavaRAMPercentage string `json:"javaRamPercentage,omitempty"`
+	// AdminWaitForTimeout is how long (seconds) to wait for the PA admin console before failing (ADMIN_WAITFOR_TIMEOUT). Default: 300.
+	AdminWaitForTimeout int32 `json:"adminWaitForTimeout,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
@@ -131,6 +177,9 @@ type PingAccessSpec struct {
 	// EngineIngress configures the Kubernetes Ingress for the PingAccess engine.
 	// Hostname defaults to pa.<spec.domain> when spec.domain is set.
 	EngineIngress IngressSpec `json:"engineIngress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAccess-specific environment variable configuration.
@@ -189,6 +238,19 @@ type PingAuthorizePAPConfig struct {
 	EnableAPIHTTPCache *bool `json:"enableAPIHTTPCache,omitempty"`
 	// PolicyDBSync enables database creation/upgrade mode (PING_POLICY_DB_SYNC).
 	PolicyDBSync bool `json:"policyDBSync,omitempty"`
+	// DBConnectionString is the JDBC connection string for the policy database (PING_DB_CONNECTION_STRING).
+	// Use "jdbc:postgresql://<host>:<port>/<db>" for PostgreSQL. Defaults to embedded H2.
+	DBConnectionString string `json:"dbConnectionString,omitempty"`
+	// DBAdminUsername is the database administrator username for DB creation/upgrade (PING_DB_ADMIN_USERNAME).
+	DBAdminUsername string `json:"dbAdminUsername,omitempty"`
+	// DBAppUsername is the runtime database username for the Policy Editor (PING_DB_APP_USERNAME).
+	DBAppUsername string `json:"dbAppUsername,omitempty"`
+	// DBSecretRef is the name of a Secret containing PING_DB_ADMIN_PASSWORD and PING_DB_APP_PASSWORD.
+	DBSecretRef string `json:"dbSecretRef,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12.
+	KeystoreType string `json:"keystoreType,omitempty"`
 	// SharedSecretRef is the name of a Secret containing DECISION_POINT_SHARED_SECRET for PAZ integration.
 	SharedSecretRef string `json:"sharedSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
@@ -206,6 +268,9 @@ type PingAuthorizePAPSpec struct {
 	// Ingress configures the Kubernetes Ingress for the PAP web UI.
 	// Hostname defaults to paz-pap.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAuthorizePAP-specific environment variable configuration.
@@ -231,6 +296,9 @@ type PingAuthorizeSpec struct {
 	// Ingress configures the Kubernetes Ingress for the PingAuthorize management interface.
 	// Hostname defaults to paz.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingAuthorize-specific environment variable configuration.
@@ -251,6 +319,13 @@ type PingFederateConfig struct {
 	EnginePort int32 `json:"enginePort,omitempty"`
 	// AdminPort is the HTTPS port for the PingFederate admin console/API (PF_ADMIN_PORT). Default: 9999.
 	AdminPort int32 `json:"adminPort,omitempty"`
+	// EngineDebug enables Java remote debugging on the PingFederate engine (PF_ENGINE_DEBUG). Default: false.
+	EngineDebug bool `json:"engineDebug,omitempty"`
+	// AdminDebug enables Java remote debugging on the PingFederate admin (PF_ADMIN_DEBUG). Default: false.
+	AdminDebug bool `json:"adminDebug,omitempty"`
+	// DebugPort is the Java remote debug listener port (PF_DEBUG_PORT). Default: 9030.
+	// Only meaningful when engineDebug or adminDebug is true.
+	DebugPort int32 `json:"debugPort,omitempty"`
 	// EnginePublicHostname is the public hostname of the PF engine node (PF_ENGINE_PUBLIC_HOSTNAME).
 	EnginePublicHostname string `json:"enginePublicHostname,omitempty"`
 	// AdminPublicHostname is the public hostname of the PF admin node (PF_ADMIN_PUBLIC_HOSTNAME).
@@ -283,6 +358,34 @@ type PingFederateConfig struct {
 	JavaRAMPercentage string `json:"javaRamPercentage,omitempty"`
 	// HSMMode is the Hardware Security Module mode (HSM_MODE). Default: OFF.
 	HSMMode string `json:"hsmMode,omitempty"`
+	// HSMHybrid enables HSM hybrid mode where certs/keys can be created on the local trust store or the HSM (PF_HSM_HYBRID). Default: false.
+	HSMHybrid bool `json:"hsmHybrid,omitempty"`
+	// BCFIPSApprovedOnly restricts the JVM to FIPS-approved algorithms only (PF_BC_FIPS_APPROVED_ONLY). Default: false.
+	BCFIPSApprovedOnly bool `json:"bcFIPSApprovedOnly,omitempty"`
+	// EngineSecondaryPort is a secondary HTTPS port for mutual SSL/TLS client certificate authentication (PF_ENGINE_SECONDARY_PORT). Default: -1 (disabled).
+	EngineSecondaryPort int32 `json:"engineSecondaryPort,omitempty"`
+	// NodeTags are space-separated tags associated with this PingFederate node used for request routing (PF_NODE_TAGS).
+	NodeTags string `json:"nodeTags,omitempty"`
+	// ProvisionerGracePeriod is the provisioner failover grace period in seconds (PF_PROVISIONER_GRACE_PERIOD). Default: 600.
+	// Only meaningful when provisionerMode is FAILOVER.
+	ProvisionerGracePeriod int32 `json:"provisionerGracePeriod,omitempty"`
+	// AdminWaitForTimeout is how long (seconds) to wait for the admin API before failing (ADMIN_WAITFOR_TIMEOUT). Default: 300.
+	AdminWaitForTimeout int32 `json:"adminWaitForTimeout,omitempty"`
+	// LogSizeMax is the maximum size for all log file appenders (PF_LOG_SIZE_MAX). Default: "10000 KB".
+	LogSizeMax string `json:"logSizeMax,omitempty"`
+	// LogNumber is the maximum number of log files retained on rotation (PF_LOG_NUMBER). Default: 2.
+	LogNumber int32 `json:"logNumber,omitempty"`
+	// JettyThreadsMin overrides the minimum Jetty thread pool size (PF_JETTY_THREADS_MIN).
+	JettyThreadsMin int32 `json:"jettyThreadsMin,omitempty"`
+	// JettyThreadsMax overrides the maximum Jetty thread pool size (PF_JETTY_THREADS_MAX).
+	JettyThreadsMax int32 `json:"jettyThreadsMax,omitempty"`
+	// AcceptQueueSize sets the size of the Jetty accept queue (PF_ACCEPT_QUEUE_SIZE). Default: 512.
+	AcceptQueueSize int32 `json:"acceptQueueSize,omitempty"`
+	// CreateInitialAdminUser creates the initial administrator account after first startup (CREATE_INITIAL_ADMIN_USER). Default: false.
+	CreateInitialAdminUser bool `json:"createInitialAdminUser,omitempty"`
+	// EnableAutomaticHeapDump enables JVM heap dumps on OutOfMemoryError (ENABLE_AUTOMATIC_HEAP_DUMP). Default: true.
+	// Set to false to disable automatic heap dumps.
+	EnableAutomaticHeapDump *bool `json:"enableAutomaticHeapDump,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// LDAPSecretRef is the name of a Secret containing PF_LDAP_PASSWORD.
@@ -323,11 +426,31 @@ type PingDirectoryConfig struct {
 	RebuildOnRestart bool `json:"rebuildOnRestart,omitempty"`
 	// ParallelPodManagement must be true when StatefulSet uses Parallel podManagementPolicy. Default: false.
 	ParallelPodManagement bool `json:"parallelPodManagement,omitempty"`
-	// FailOnDisabledBaseDN fails the container if USER_BASE_DN replication is not enabled. Default: false.
+	// FailOnDisabledBaseDN fails the container if USER_BASE_DN replication is not enabled (FAIL_ON_DISABLED_BASE_DN). Default: false.
 	FailOnDisabledBaseDN bool `json:"failOnDisabledBaseDN,omitempty"`
+	// FailOnUnsuccessfulRemoveDefunct fails the container if a previous remove-defunct-server call did not complete successfully (FAIL_ON_UNSUCCESSFUL_REMOVE_DEFUNCT). Default: false.
+	FailOnUnsuccessfulRemoveDefunct bool `json:"failOnUnsuccessfulRemoveDefunct,omitempty"`
+	// ForceDataReimport forces a backend data export and re-import on restart (PD_FORCE_DATA_REIMPORT). Default: false.
+	ForceDataReimport bool `json:"forceDataReimport,omitempty"`
+	// SkipWaitForDNS skips the DNS readiness check on startup (SKIP_WAIT_FOR_DNS). Default: false.
+	SkipWaitForDNS bool `json:"skipWaitForDNS,omitempty"`
+	// LoadBalancingAlgorithmNames is a semicolon-separated list of load-balancing algorithm names (LOAD_BALANCING_ALGORITHM_NAMES).
+	LoadBalancingAlgorithmNames string `json:"loadBalancingAlgorithmNames,omitempty"`
+	// RestrictedBaseDNs is a semicolon-separated list of base DNs used for entry-balancing configuration (RESTRICTED_BASE_DNS).
+	RestrictedBaseDNs string `json:"restrictedBaseDNs,omitempty"`
+	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
+	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// EncryptionSecretRef is the name of a Secret containing the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
+	EncryptionSecretRef string `json:"encryptionSecretRef,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	TruststoreType string `json:"truststoreType,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
-	// KeystoreSecretRef is the name of a Secret containing the keystore for TLS.
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
 	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
@@ -351,6 +474,9 @@ type PingFederateSpec struct {
 	// AdminIngress configures the Kubernetes Ingress for the PingFederate admin console.
 	// Hostname defaults to pf-admin.<spec.domain> when spec.domain is set.
 	AdminIngress IngressSpec `json:"adminIngress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingFederate-specific environment variable configuration.
@@ -369,6 +495,15 @@ type PingDataConsoleSpec struct {
 	Image string `json:"image,omitempty"`
 	// Version is the container image tag. Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
+	// HTTPPort is the HTTP listen port for PingDataConsole (HTTP_PORT). Default: 8080.
+	HTTPPort int32 `json:"httpPort,omitempty"`
+	// HTTPSPort is the HTTPS listen port for PingDataConsole (HTTPS_PORT). Default: 8443.
+	HTTPSPort int32 `json:"httpsPort,omitempty"`
+	// BrandingAppName sets the application name shown on the sign-on page and banner (BRANDING_APP_NAME).
+	// Default: "PingDirectory Admin Console".
+	BrandingAppName string `json:"brandingAppName,omitempty"`
+	// SystemReadOnly puts the console in read-only mode when true (SYSTEM_READ_ONLY). Default: false.
+	SystemReadOnly bool `json:"systemReadOnly,omitempty"`
 	// Ingress configures the Kubernetes Ingress for PingDataConsole.
 	// Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
@@ -390,10 +525,133 @@ type PingDirectorySpec struct {
 	StorageClass string `json:"storageClass,omitempty"`
 	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
 	StorageSize string `json:"storageSize,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	// Annotations are merged on top of spec.services.annotations.
+	Service ServiceSpec `json:"service,omitempty"`
 	// Container holds container-level settings such as service wait conditions.
 	Container ContainerSpec `json:"container,omitempty"`
 	// Config holds PingDirectory-specific environment variable configuration.
 	Config PingDirectoryConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
+// PingDataSyncConfig maps to the env vars consumed by the pingdatasync container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingdatasync/README.html
+type PingDataSyncConfig struct {
+	// ServerProfile is the primary server profile for PingDataSync.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers.
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
+	// AdminUserName is the failover administrative user (ADMIN_USER_NAME). Default: admin.
+	AdminUserName string `json:"adminUserName,omitempty"`
+	// RetryTimeoutSeconds is the timeout for manage-topology operations (RETRY_TIMEOUT_SECONDS). Default: 180.
+	RetryTimeoutSeconds int32 `json:"retryTimeoutSeconds,omitempty"`
+	// RebuildOnRestart forces replace-profile on every restart (PD_REBUILD_ON_RESTART). Default: false.
+	RebuildOnRestart bool `json:"rebuildOnRestart,omitempty"`
+	// ParallelPodManagement must be true when StatefulSet uses Parallel podManagementPolicy (PARALLEL_POD_MANAGEMENT_POLICY). Default: false.
+	ParallelPodManagement bool `json:"parallelPodManagement,omitempty"`
+	// SkipWaitForDNS skips the DNS readiness check on startup (SKIP_WAIT_FOR_DNS). Default: false.
+	SkipWaitForDNS bool `json:"skipWaitForDNS,omitempty"`
+	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
+	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	TruststoreType string `json:"truststoreType,omitempty"`
+	// AdminSecretRef is the name of a Secret containing admin credentials (ROOT_USER_PASSWORD_FILE / ADMIN_USER_PASSWORD_FILE).
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingDataSyncSpec defines the desired state of a PingDataSync deployment.
+type PingDataSyncSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag. Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingDataSync pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
+	// StorageClass is the storage class used for PersistentVolumeClaims.
+	StorageClass string `json:"storageClass,omitempty"`
+	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
+	StorageSize string `json:"storageSize,omitempty"`
+	// Ingress configures the Kubernetes Ingress for PingDataSync.
+	// Hostname defaults to pds.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	Service ServiceSpec `json:"service,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
+	// Config holds PingDataSync-specific environment variable configuration.
+	Config PingDataSyncConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
+}
+
+// PingDirectoryProxyConfig maps to the env vars consumed by the pingdirectoryproxy container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingdirectoryproxy/README.html
+type PingDirectoryProxyConfig struct {
+	// ServerProfile is the primary server profile for PingDirectoryProxy.
+	ServerProfile *ServerProfileSpec `json:"serverProfile,omitempty"`
+	// ServerProfileLayers defines additional named profile layers.
+	ServerProfileLayers []ServerProfileLayerSpec `json:"serverProfileLayers,omitempty"`
+	// AdminUserName is the replication administrative user (ADMIN_USER_NAME). Default: admin.
+	AdminUserName string `json:"adminUserName,omitempty"`
+	// RetryTimeoutSeconds is the timeout for manage-topology operations (RETRY_TIMEOUT_SECONDS). Default: 180.
+	RetryTimeoutSeconds int32 `json:"retryTimeoutSeconds,omitempty"`
+	// CertificateNickname is the alias of the certificate to use within the keystore (CERTIFICATE_NICKNAME).
+	CertificateNickname string `json:"certificateNickname,omitempty"`
+	// KeystoreType is the format of the keystore (KEYSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	KeystoreType string `json:"keystoreType,omitempty"`
+	// TruststoreType is the format of the truststore (TRUSTSTORE_TYPE). One of: jks, pkcs12, pem, bcfks.
+	TruststoreType string `json:"truststoreType,omitempty"`
+	// PingDirectoryHostname is the PingDirectory hostname used for automatic server discovery (PINGDIRECTORY_HOSTNAME).
+	PingDirectoryHostname string `json:"pingDirectoryHostname,omitempty"`
+	// PingDirectoryLDAPSPort is the PingDirectory LDAPS port for automatic server discovery (PINGDIRECTORY_LDAPS_PORT).
+	PingDirectoryLDAPSPort int32 `json:"pingDirectoryLDAPSPort,omitempty"`
+	// JoinPDTopology configures the proxy to join the topology of PingDirectory (JOIN_PD_TOPOLOGY). Default: false.
+	JoinPDTopology bool `json:"joinPDTopology,omitempty"`
+	// AdminSecretRef is the name of a Secret containing admin credentials (ROOT_USER_PASSWORD_FILE).
+	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// KeystoreSecretRef is the name of a Secret containing the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
+	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingDirectoryProxySpec defines the desired state of a PingDirectoryProxy deployment.
+type PingDirectoryProxySpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag. Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingDirectoryProxy pods. Default: 1.
+	Replicas int32 `json:"replicas,omitempty"`
+	// StorageClass is the storage class used for PersistentVolumeClaims.
+	StorageClass string `json:"storageClass,omitempty"`
+	// StorageSize is the size of the /opt/out PVC. Default: 8Gi.
+	StorageSize string `json:"storageSize,omitempty"`
+	// Ingress configures the Kubernetes Ingress for PingDirectoryProxy.
+	// Hostname defaults to pdp.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	Service ServiceSpec `json:"service,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
+	// Config holds PingDirectoryProxy-specific environment variable configuration.
+	Config PingDirectoryProxyConfig `json:"config,omitempty"`
 	// ValuesOverride is merged on top of the base Helm values as raw JSON.
 	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
 }
@@ -410,11 +668,39 @@ type PingEnvironmentSpec struct {
 	// Ingress holds shared ingress settings inherited by all components.
 	// Set enabled: true to turn on ingress for all components at once.
 	Ingress GlobalIngressSpec `json:"ingress,omitempty"`
+	// Services holds shared Kubernetes Service settings inherited by all components.
+	// Per-product service.annotations take precedence on conflict.
+	Services GlobalServicesSpec `json:"services,omitempty"`
 	// PingDataConsole configures the PingDataConsole web UI.
 	// Only deployed when this section is explicitly present and a PingDirectory CR references this environment.
 	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
+	// Vault configures HashiCorp Vault Agent injection for all products in this environment.
+	// Maps to global.vault in the ping-devops Helm chart.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Vault *runtime.RawExtension `json:"vault,omitempty"`
+	// SecurityContext sets the pod-level securityContext for all product workloads.
+	// Per-product container.securityContext overrides this.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	SecurityContext *runtime.RawExtension `json:"securityContext,omitempty"`
+	// ContainerSecurityContext sets the container-level securityContext for all product workloads.
+	// Per-product container.containerSecurityContext overrides this.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ContainerSecurityContext *runtime.RawExtension `json:"containerSecurityContext,omitempty"`
+	// Resources sets default CPU/memory requests and limits for all product containers.
+	// Per-product container.resources overrides this. Both are overridden by tier defaults
+	// when neither is set.
+	Resources *ResourceRequirementsSpec `json:"resources,omitempty"`
+	// Volumes defines named pod-level volumes available to all product workloads in this
+	// environment. Each key is the volume name; the value is any valid Kubernetes volume spec
+	// (emptyDir, secret, configMap, hostPath, etc.). Products opt in by listing names under
+	// container.includeVolumes, or use IncludeVolumes to mount them in every product.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Volumes runtime.RawExtension `json:"volumes,omitempty"`
+	// IncludeVolumes lists volume names (from spec.volumes) to mount into every product's
+	// workload in this environment. Maps to global.includeVolumes in the ping-devops chart.
+	IncludeVolumes []string `json:"includeVolumes,omitempty"`
 }
 
 // PingEnvironmentStatus defines the observed state of PingEnvironment.
