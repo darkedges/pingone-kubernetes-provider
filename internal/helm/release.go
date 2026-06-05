@@ -184,11 +184,6 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		"envs": map[string]any{
 			"PING_IDENTITY_ACCEPT_EULA": "YES",
 		},
-		"envFrom": map[string]any{
-			"secretRef": []map[string]any{
-				{"name": "devops-secret"},
-			},
-		},
 		"ingress": map[string]any{
 			"enabled": false,
 		},
@@ -360,22 +355,20 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		// Logging
 		pfEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/log/server.log"
 
-		// Build PingFederate envFrom
-		pfEnvFrom := map[string]any{}
-		if pfCfg.AdminSecretRef != "" || pfCfg.LDAPSecretRef != "" {
-			secretRefs := []map[string]any{}
-			if pfCfg.AdminSecretRef != "" {
-				secretRefs = append(secretRefs, map[string]any{"name": pfCfg.AdminSecretRef})
-			}
-			if pfCfg.LDAPSecretRef != "" {
-				secretRefs = append(secretRefs, map[string]any{"name": pfCfg.LDAPSecretRef})
-			}
-			pfEnvFrom["secretRef"] = secretRefs
+		// Build PingFederate envFrom (container.envFrom list)
+		var pfEnvFrom []map[string]any
+		if pfCfg.AdminSecretRef != "" {
+			pfEnvFrom = append(pfEnvFrom, secretEnvFrom(pfCfg.AdminSecretRef))
+		}
+		if pfCfg.LDAPSecretRef != "" {
+			pfEnvFrom = append(pfEnvFrom, secretEnvFrom(pfCfg.LDAPSecretRef))
 		}
 		if pfCfg.EnvConfigMapRef != "" {
-			pfEnvFrom["configMapRef"] = []map[string]any{
-				{"name": pfCfg.EnvConfigMapRef},
-			}
+			pfEnvFrom = append(pfEnvFrom, configMapEnvFrom(pfCfg.EnvConfigMapRef))
+		}
+		pfContainerVals := buildContainerValues(pfCPU, pfMem, products.PingFederate.Container)
+		if len(pfEnvFrom) > 0 {
+			pfContainerVals["envFrom"] = pfEnvFrom
 		}
 
 		// Auto-derive TLS secret names when not explicitly set
@@ -416,15 +409,12 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     pfImageValues,
-			"container": buildContainerValues(pfCPU, pfMem, products.PingFederate.Container),
+			"container": pfContainerVals,
 			"envs":      pfEnvs,
 			"services": map[string]any{
 				"https": adminSvc,
 			},
 			"ingress": pfAdminIngressValues,
-		}
-		if len(pfEnvFrom) > 0 {
-			pfAdminValues["envFrom"] = pfEnvFrom
 		}
 
 		// Assemble pingfederate-engine section (runtime engine, user-specified replicas)
@@ -437,7 +427,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     pfImageValues,
-			"container": buildContainerValues(pfCPU, pfMem, products.PingFederate.Container),
+			"container": pfContainerVals,
 			"envs":      pfEnvs,
 			"services": map[string]any{
 				"https": map[string]any{
@@ -448,9 +438,6 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"ingress": pfEngineIngressValues,
-		}
-		if len(pfEnvFrom) > 0 {
-			pfEngineValues["envFrom"] = pfEnvFrom
 		}
 		applyWorkloadSecurityContext(pfAdminValues, products.PingFederate.Container.SecurityContext)
 		applyWorkloadSecurityContext(pfEngineValues, products.PingFederate.Container.SecurityContext)
@@ -544,28 +531,26 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pvcClaim["storageClassName"] = pdSpec.StorageClass
 		}
 
-		// PingDirectory envFrom
-		pdEnvFrom := map[string]any{}
-		pdSecretRefs := []map[string]any{}
+		// PingDirectory envFrom (container.envFrom list)
+		var pdEnvFrom []map[string]any
 		if pdCfg.AdminSecretRef != "" {
-			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.AdminSecretRef})
+			pdEnvFrom = append(pdEnvFrom, secretEnvFrom(pdCfg.AdminSecretRef))
 		}
 		if pdCfg.EncryptionSecretRef != "" {
-			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.EncryptionSecretRef})
+			pdEnvFrom = append(pdEnvFrom, secretEnvFrom(pdCfg.EncryptionSecretRef))
 		}
 		if pdCfg.KeystoreSecretRef != "" {
-			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.KeystoreSecretRef})
+			pdEnvFrom = append(pdEnvFrom, secretEnvFrom(pdCfg.KeystoreSecretRef))
 		}
 		if pdCfg.TruststoreSecretRef != "" {
-			pdSecretRefs = append(pdSecretRefs, map[string]any{"name": pdCfg.TruststoreSecretRef})
-		}
-		if len(pdSecretRefs) > 0 {
-			pdEnvFrom["secretRef"] = pdSecretRefs
+			pdEnvFrom = append(pdEnvFrom, secretEnvFrom(pdCfg.TruststoreSecretRef))
 		}
 		if pdCfg.EnvConfigMapRef != "" {
-			pdEnvFrom["configMapRef"] = []map[string]any{
-				{"name": pdCfg.EnvConfigMapRef},
-			}
+			pdEnvFrom = append(pdEnvFrom, configMapEnvFrom(pdCfg.EnvConfigMapRef))
+		}
+		pdContainerVals := buildContainerValues(pdCPU, pdMem, pdSpec.Container)
+		if len(pdEnvFrom) > 0 {
+			pdContainerVals["envFrom"] = pdEnvFrom
 		}
 
 		pdValues = map[string]any{
@@ -587,7 +572,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     buildImageValues(pdSpec.Image, pdSpec.Version),
-			"container": buildContainerValues(pdCPU, pdMem, pdSpec.Container),
+			"container": pdContainerVals,
 			"envs":      pdEnvs,
 			"services": map[string]any{
 				"ldap": map[string]any{
@@ -607,9 +592,6 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"ingress": map[string]any{"enabled": false},
-		}
-		if len(pdEnvFrom) > 0 {
-			pdValues["envFrom"] = pdEnvFrom
 		}
 		applyWorkloadSecurityContext(pdValues, products.PingDirectory.Container.SecurityContext)
 		applyRawVolumes(pdValues, products.PingDirectory.Container)
@@ -717,12 +699,16 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			paEnvs["ADMIN_WAITFOR_TIMEOUT"] = fmt.Sprintf("%d", paCfg.AdminWaitForTimeout)
 		}
 
-		paEnvFrom := map[string]any{}
+		var paEnvFrom []map[string]any
 		if paCfg.AdminSecretRef != "" {
-			paEnvFrom["secretRef"] = []map[string]any{{"name": paCfg.AdminSecretRef}}
+			paEnvFrom = append(paEnvFrom, secretEnvFrom(paCfg.AdminSecretRef))
 		}
 		if paCfg.EnvConfigMapRef != "" {
-			paEnvFrom["configMapRef"] = []map[string]any{{"name": paCfg.EnvConfigMapRef}}
+			paEnvFrom = append(paEnvFrom, configMapEnvFrom(paCfg.EnvConfigMapRef))
+		}
+		paContainerVals := buildContainerValues(paCPU, paMem, products.PingAccess.Container)
+		if len(paEnvFrom) > 0 {
+			paContainerVals["envFrom"] = paEnvFrom
 		}
 
 		var paAdminIngressValues map[string]any
@@ -750,7 +736,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     paImageValues,
-			"container": buildContainerValues(paCPU, paMem, products.PingAccess.Container),
+			"container": paContainerVals,
 			"envs":      paEnvs,
 			"services": map[string]any{
 				"https": map[string]any{
@@ -762,9 +748,6 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			},
 			"ingress": paAdminIngressValues,
 		}
-		if len(paEnvFrom) > 0 {
-			paAdminValues["envFrom"] = paEnvFrom
-		}
 
 		paEngineValues = map[string]any{
 			"enabled": true,
@@ -775,7 +758,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     paImageValues,
-			"container": buildContainerValues(paCPU, paMem, products.PingAccess.Container),
+			"container": paContainerVals,
 			"envs":      paEnvs,
 			"services": map[string]any{
 				"https": map[string]any{
@@ -786,9 +769,6 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"ingress": paEngineIngressValues,
-		}
-		if len(paEnvFrom) > 0 {
-			paEngineValues["envFrom"] = paEnvFrom
 		}
 		applyWorkloadSecurityContext(paAdminValues, products.PingAccess.Container.SecurityContext)
 		applyWorkloadSecurityContext(paEngineValues, products.PingAccess.Container.SecurityContext)
@@ -823,19 +803,19 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		emitServerProfileEnvs(pazEnvs, pazCfg.ServerProfile, pazCfg.ServerProfileLayers)
 
-		pazEnvFrom := map[string]any{}
-		if pazCfg.AdminSecretRef != "" || pazCfg.EncryptionSecretRef != "" {
-			secretRefs := []map[string]any{}
-			if pazCfg.AdminSecretRef != "" {
-				secretRefs = append(secretRefs, map[string]any{"name": pazCfg.AdminSecretRef})
-			}
-			if pazCfg.EncryptionSecretRef != "" {
-				secretRefs = append(secretRefs, map[string]any{"name": pazCfg.EncryptionSecretRef})
-			}
-			pazEnvFrom["secretRef"] = secretRefs
+		var pazEnvFrom []map[string]any
+		if pazCfg.AdminSecretRef != "" {
+			pazEnvFrom = append(pazEnvFrom, secretEnvFrom(pazCfg.AdminSecretRef))
+		}
+		if pazCfg.EncryptionSecretRef != "" {
+			pazEnvFrom = append(pazEnvFrom, secretEnvFrom(pazCfg.EncryptionSecretRef))
 		}
 		if pazCfg.EnvConfigMapRef != "" {
-			pazEnvFrom["configMapRef"] = []map[string]any{{"name": pazCfg.EnvConfigMapRef}}
+			pazEnvFrom = append(pazEnvFrom, configMapEnvFrom(pazCfg.EnvConfigMapRef))
+		}
+		pazContainerVals := buildContainerValues(pazCPU, pazMem, pazSpec.Container)
+		if len(pazEnvFrom) > 0 {
+			pazContainerVals["envFrom"] = pazEnvFrom
 		}
 
 		var pazIngressValues map[string]any
@@ -874,7 +854,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     buildImageValues(pazSpec.Image, pazSpec.Version),
-			"container": buildContainerValues(pazCPU, pazMem, pazSpec.Container),
+			"container": pazContainerVals,
 			"envs":      pazEnvs,
 			"services": map[string]any{
 				"ldap": map[string]any{
@@ -894,9 +874,6 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"ingress": pazIngressValues,
-		}
-		if len(pazEnvFrom) > 0 {
-			pazValues["envFrom"] = pazEnvFrom
 		}
 		applyWorkloadSecurityContext(pazValues, products.PingAuthorize.Container.SecurityContext)
 		applyRawVolumes(pazValues, products.PingAuthorize.Container)
@@ -955,22 +932,18 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		emitServerProfileEnvs(papEnvs, papCfg.ServerProfile, papCfg.ServerProfileLayers)
 
-		papEnvFrom := map[string]any{}
-		papSecretRefs := []map[string]any{}
+		var papEnvFrom []map[string]any
 		if papCfg.SharedSecretRef != "" {
-			papSecretRefs = append(papSecretRefs, map[string]any{"name": papCfg.SharedSecretRef})
+			papEnvFrom = append(papEnvFrom, secretEnvFrom(papCfg.SharedSecretRef))
 		}
 		if papCfg.DBSecretRef != "" {
-			papSecretRefs = append(papSecretRefs, map[string]any{"name": papCfg.DBSecretRef})
+			papEnvFrom = append(papEnvFrom, secretEnvFrom(papCfg.DBSecretRef))
 		}
 		if papCfg.KeystoreSecretRef != "" {
-			papSecretRefs = append(papSecretRefs, map[string]any{"name": papCfg.KeystoreSecretRef})
-		}
-		if len(papSecretRefs) > 0 {
-			papEnvFrom["secretRef"] = papSecretRefs
+			papEnvFrom = append(papEnvFrom, secretEnvFrom(papCfg.KeystoreSecretRef))
 		}
 		if papCfg.EnvConfigMapRef != "" {
-			papEnvFrom["configMapRef"] = []map[string]any{{"name": papCfg.EnvConfigMapRef}}
+			papEnvFrom = append(papEnvFrom, configMapEnvFrom(papCfg.EnvConfigMapRef))
 		}
 
 		var papIngressValues map[string]any
@@ -980,6 +953,10 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			papIngressValues = map[string]any{"enabled": false}
 		}
 
+		papContainerVals := buildContainerValues("", "", products.PingAuthorizePAP.Container)
+		if len(papEnvFrom) > 0 {
+			papContainerVals["envFrom"] = papEnvFrom
+		}
 		papValues = map[string]any{
 			"enabled": true,
 			"workload": map[string]any{
@@ -988,15 +965,10 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 					"replicas": 1,
 				},
 			},
-			"image":   buildImageValues(products.PingAuthorizePAP.Image, products.PingAuthorizePAP.Version),
-			"envs":    papEnvs,
-			"ingress": papIngressValues,
-		}
-		if c := buildContainerValues("", "", products.PingAuthorizePAP.Container); len(c) > 0 {
-			papValues["container"] = c
-		}
-		if len(papEnvFrom) > 0 {
-			papValues["envFrom"] = papEnvFrom
+			"image":     buildImageValues(products.PingAuthorizePAP.Image, products.PingAuthorizePAP.Version),
+			"container": papContainerVals,
+			"envs":      papEnvs,
+			"ingress":   papIngressValues,
 		}
 		applyWorkloadSecurityContext(papValues, products.PingAuthorizePAP.Container.SecurityContext)
 		applyRawVolumes(papValues, products.PingAuthorizePAP.Container)
@@ -1066,22 +1038,18 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pdsPVCClaim["storageClassName"] = pdsSpec.StorageClass
 		}
 
-		pdsEnvFrom := map[string]any{}
-		pdsSecretRefs := []map[string]any{}
+		var pdsEnvFrom []map[string]any
 		if pdsCfg.AdminSecretRef != "" {
-			pdsSecretRefs = append(pdsSecretRefs, map[string]any{"name": pdsCfg.AdminSecretRef})
+			pdsEnvFrom = append(pdsEnvFrom, secretEnvFrom(pdsCfg.AdminSecretRef))
 		}
 		if pdsCfg.KeystoreSecretRef != "" {
-			pdsSecretRefs = append(pdsSecretRefs, map[string]any{"name": pdsCfg.KeystoreSecretRef})
+			pdsEnvFrom = append(pdsEnvFrom, secretEnvFrom(pdsCfg.KeystoreSecretRef))
 		}
 		if pdsCfg.TruststoreSecretRef != "" {
-			pdsSecretRefs = append(pdsSecretRefs, map[string]any{"name": pdsCfg.TruststoreSecretRef})
-		}
-		if len(pdsSecretRefs) > 0 {
-			pdsEnvFrom["secretRef"] = pdsSecretRefs
+			pdsEnvFrom = append(pdsEnvFrom, secretEnvFrom(pdsCfg.TruststoreSecretRef))
 		}
 		if pdsCfg.EnvConfigMapRef != "" {
-			pdsEnvFrom["configMapRef"] = []map[string]any{{"name": pdsCfg.EnvConfigMapRef}}
+			pdsEnvFrom = append(pdsEnvFrom, configMapEnvFrom(pdsCfg.EnvConfigMapRef))
 		}
 
 		pdsIng := resolveIngressSpec(env.Ingress, pdsSpec.Ingress)
@@ -1094,6 +1062,10 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pdsIngressValues = map[string]any{"enabled": false}
 		}
 
+		pdsContainerVals := buildContainerValues(pdsCPU, pdsMem, pdsSpec.Container)
+		if len(pdsEnvFrom) > 0 {
+			pdsContainerVals["envFrom"] = pdsEnvFrom
+		}
 		pdsValues = map[string]any{
 			"enabled": true,
 			"workload": map[string]any{
@@ -1113,12 +1085,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     buildImageValues(pdsSpec.Image, pdsSpec.Version),
-			"container": buildContainerValues(pdsCPU, pdsMem, pdsSpec.Container),
+			"container": pdsContainerVals,
 			"envs":      pdsEnvs,
 			"ingress":   pdsIngressValues,
-		}
-		if len(pdsEnvFrom) > 0 {
-			pdsValues["envFrom"] = pdsEnvFrom
 		}
 		applyWorkloadSecurityContext(pdsValues, products.PingDataSync.Container.SecurityContext)
 		applyRawVolumes(pdsValues, products.PingDataSync.Container)
@@ -1183,22 +1152,18 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pdpPVCClaim["storageClassName"] = pdpSpec.StorageClass
 		}
 
-		pdpEnvFrom := map[string]any{}
-		pdpSecretRefs := []map[string]any{}
+		var pdpEnvFrom []map[string]any
 		if pdpCfg.AdminSecretRef != "" {
-			pdpSecretRefs = append(pdpSecretRefs, map[string]any{"name": pdpCfg.AdminSecretRef})
+			pdpEnvFrom = append(pdpEnvFrom, secretEnvFrom(pdpCfg.AdminSecretRef))
 		}
 		if pdpCfg.KeystoreSecretRef != "" {
-			pdpSecretRefs = append(pdpSecretRefs, map[string]any{"name": pdpCfg.KeystoreSecretRef})
+			pdpEnvFrom = append(pdpEnvFrom, secretEnvFrom(pdpCfg.KeystoreSecretRef))
 		}
 		if pdpCfg.TruststoreSecretRef != "" {
-			pdpSecretRefs = append(pdpSecretRefs, map[string]any{"name": pdpCfg.TruststoreSecretRef})
-		}
-		if len(pdpSecretRefs) > 0 {
-			pdpEnvFrom["secretRef"] = pdpSecretRefs
+			pdpEnvFrom = append(pdpEnvFrom, secretEnvFrom(pdpCfg.TruststoreSecretRef))
 		}
 		if pdpCfg.EnvConfigMapRef != "" {
-			pdpEnvFrom["configMapRef"] = []map[string]any{{"name": pdpCfg.EnvConfigMapRef}}
+			pdpEnvFrom = append(pdpEnvFrom, configMapEnvFrom(pdpCfg.EnvConfigMapRef))
 		}
 
 		pdpIng := resolveIngressSpec(env.Ingress, pdpSpec.Ingress)
@@ -1211,6 +1176,10 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			pdpIngressValues = map[string]any{"enabled": false}
 		}
 
+		pdpContainerVals := buildContainerValues(pdpCPU, pdpMem, pdpSpec.Container)
+		if len(pdpEnvFrom) > 0 {
+			pdpContainerVals["envFrom"] = pdpEnvFrom
+		}
 		pdpValues = map[string]any{
 			"enabled": true,
 			"workload": map[string]any{
@@ -1230,12 +1199,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 				},
 			},
 			"image":     buildImageValues(pdpSpec.Image, pdpSpec.Version),
-			"container": buildContainerValues(pdpCPU, pdpMem, pdpSpec.Container),
+			"container": pdpContainerVals,
 			"envs":      pdpEnvs,
 			"ingress":   pdpIngressValues,
-		}
-		if len(pdpEnvFrom) > 0 {
-			pdpValues["envFrom"] = pdpEnvFrom
 		}
 		applyWorkloadSecurityContext(pdpValues, products.PingDirectoryProxy.Container.SecurityContext)
 		applyRawVolumes(pdpValues, products.PingDirectoryProxy.Container)
@@ -1683,6 +1649,16 @@ func buildIngressValues(ing pingonev1alpha1.IngressSpec, hostname string) map[st
 		m["annotations"] = ing.Annotations
 	}
 	return m
+}
+
+// secretEnvFrom returns a container.envFrom list entry referencing a Kubernetes Secret.
+func secretEnvFrom(name string) map[string]any {
+	return map[string]any{"secretRef": map[string]any{"name": name}}
+}
+
+// configMapEnvFrom returns a container.envFrom list entry referencing a Kubernetes ConfigMap.
+func configMapEnvFrom(name string) map[string]any {
+	return map[string]any{"configMapRef": map[string]any{"name": name}}
 }
 
 // mergeMaps recursively merges src into dst, returning the result.

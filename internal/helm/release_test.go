@@ -289,3 +289,53 @@ func TestMergeValues_AddsNewKeys(t *testing.T) {
 		t.Error("override key \"b\" not present")
 	}
 }
+
+// ---- SERVER_PROFILE_URL mapping -------------------------------------------
+
+func TestBuildPingValues_PingDirectory_ServerProfileURL(t *testing.T) {
+	env := pingonev1alpha1.PingEnvironmentSpec{
+		TenantID: "test",
+		Tier:     "development",
+	}
+	products := ProductSpecs{
+		PingDirectory: &pingonev1alpha1.PingDirectorySpec{
+			Config: pingonev1alpha1.PingDirectoryConfig{
+				ServerProfile: &pingonev1alpha1.ServerProfileSpec{
+					URL:    "https://github.com/your-org/ping-profiles.git",
+					Branch: "main",
+					Path:   "pingdirectory",
+				},
+				UserBaseDN: "dc=example,dc=com",
+			},
+		},
+	}
+
+	vals, err := BuildPingValues(env, products)
+	if err != nil {
+		t.Fatalf("BuildPingValues error: %v", err)
+	}
+
+	pd, ok := vals["pingdirectory"].(map[string]any)
+	if !ok {
+		t.Fatal("pingdirectory key missing or wrong type")
+	}
+	envs, ok := pd["envs"].(map[string]any)
+	if !ok {
+		t.Fatal("pingdirectory.envs missing or wrong type")
+	}
+
+	for _, tc := range []struct{ key, want string }{
+		{"SERVER_PROFILE_URL", "https://github.com/your-org/ping-profiles.git"},
+		{"SERVER_PROFILE_BRANCH", "main"},
+		{"SERVER_PROFILE_PATH", "pingdirectory"},
+	} {
+		got, ok := envs[tc.key]
+		if !ok {
+			t.Errorf("envs[%q] not set", tc.key)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("envs[%q] = %q, want %q", tc.key, got, tc.want)
+		}
+	}
+}
