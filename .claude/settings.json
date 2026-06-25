@@ -3,7 +3,8 @@
     "allow": [
       "Bash(wait)",
       "Bash(git commit -m ' *)",
-      "Bash(mkdir -p /tmp/helm-cache && helm pull ping-devops --repo https://helm.pingidentity.com/ --version 0.12.2 --destination /tmp/helm-cache/ 2>&1 && ls /tmp/helm-cache/)"
+      "Bash(mkdir -p /tmp/helm-cache && helm pull ping-devops --repo https://helm.pingidentity.com/ --version 0.12.2 --destination /tmp/helm-cache/ 2>&1 && ls /tmp/helm-cache/)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/pingidentity/pingidentity-devops-getting-started/1b1c624e0130f0e73d8de523ec9b75491f5c07ed/docs/docker-images/pingfederate/README.md\")"
     ],
     "additionalDirectories": [
       "/tmp"
