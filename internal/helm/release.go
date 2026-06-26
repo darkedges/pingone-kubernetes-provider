@@ -1235,6 +1235,15 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		globalValues["includeVolumes"] = env.IncludeVolumes
 	}
 
+	// Emit global.env — additional environment variables injected into every product container.
+	if len(env.Env) > 0 {
+		envMap := make(map[string]any, len(env.Env))
+		for k, v := range env.Env {
+			envMap[k] = v
+		}
+		globalValues["env"] = envMap
+	}
+
 	var err error
 
 	// Merge PingFederate ValuesOverride

@@ -1,7 +1,9 @@
 # Image and module configuration
 MODULE      ?= github.com/darkedges/pingone-operator
-IMG         ?= pingone-operator:latest
+REGISTRY    ?= docker.io/darkedges
+IMG         ?= $(REGISTRY)/pingone-operator:latest
 PLATFORM    ?= linux/amd64
+RELEASE_IMG ?= $(REGISTRY)/pingone-operator:$(VERSION)
 HELM_CHART_DIR ?= charts/pingone-operator
 HELM_PACKAGE_DIR ?= dist
 HELM_OCI_REPO ?= oci://ghcr.io/darkedges/charts
@@ -152,6 +154,13 @@ docker-buildx: ## Build and push a multi-arch image via buildx
 	  --platform linux/amd64,linux/arm64 \
 	  --push \
 	  -t $(IMG) .
+
+.PHONY: docker-release
+docker-release: ## Build and push the operator image to ghcr.io/darkedges (REGISTRY/RELEASE_IMG)
+	docker buildx build \
+	  --platform linux/amd64,linux/arm64 \
+	  --push \
+	  -t $(RELEASE_IMG) .
 
 # --------------------------------------------------------------------------- #
 #  Helm / OCI                                                                  #

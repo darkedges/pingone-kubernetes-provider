@@ -314,6 +314,13 @@ func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 }
 
 // DeepCopy creates a deep copy of PingEnvironmentSpec.

@@ -729,6 +729,9 @@ type PingEnvironmentSpec struct {
 	// IncludeVolumes lists volume names (from spec.volumes) to mount into every product's
 	// workload in this environment. Maps to global.includeVolumes in the ping-devops chart.
 	IncludeVolumes []string `json:"includeVolumes,omitempty"`
+	// Env is a map of additional environment variables injected into every product container
+	// in this environment. Maps to global.env in the ping-devops Helm chart.
+	Env map[string]string `json:"env,omitempty"`
 }
 
 // PingEnvironmentStatus defines the observed state of PingEnvironment.
