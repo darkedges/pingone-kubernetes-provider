@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"helm.sh/helm/v3/pkg/action"
+	helmChartPkg "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +53,14 @@ type PingEnvironmentReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	RESTConfig *rest.Config
+	cachedChart *helmChart
+}
+
+// helmChart holds the loaded chart and the path it was loaded from, so we only
+// call loader.Load once per operator process rather than on every reconcile.
+type helmChart struct {
+	path  string
+	chart *helmChartPkg.Chart
 }
 
 // SetupWithManager registers the reconciler and watches all product CRDs.
@@ -214,17 +223,30 @@ func (r *PingEnvironmentReconciler) deployPingDevops(cfg *action.Configuration, 
 		return fmt.Errorf("build ping values: %w", err)
 	}
 
-	chartPath, err := helmclient.DownloadChart(helmRepoURL, helmChartName, helmChartVer, helmCacheDir)
+	ch, err := r.loadChart()
 	if err != nil {
-		return fmt.Errorf("download %s chart: %w", helmChartName, err)
-	}
-
-	ch, err := loader.Load(chartPath)
-	if err != nil {
-		return fmt.Errorf("load %s chart: %w", helmChartName, err)
+		return err
 	}
 
 	return helmclient.InstallOrUpgrade(cfg, releaseName, namespace, ch, values, true)
+}
+
+// loadChart returns the cached chart, downloading and parsing it on first call.
+// The chart version is pinned so the cached value never becomes stale.
+func (r *PingEnvironmentReconciler) loadChart() (*helmChartPkg.Chart, error) {
+	chartPath, err := helmclient.DownloadChart(helmRepoURL, helmChartName, helmChartVer, helmCacheDir)
+	if err != nil {
+		return nil, fmt.Errorf("download %s chart: %w", helmChartName, err)
+	}
+	if r.cachedChart != nil && r.cachedChart.path == chartPath {
+		return r.cachedChart.chart, nil
+	}
+	ch, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("load %s chart: %w", helmChartName, err)
+	}
+	r.cachedChart = &helmChart{path: chartPath, chart: ch}
+	return ch, nil
 }
 
 func (r *PingEnvironmentReconciler) setReady(ctx context.Context, env *pingonev1alpha1.PingEnvironment, releaseName string, lists productCRLists) (ctrl.Result, error) {
