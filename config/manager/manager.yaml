@@ -56,11 +56,13 @@ spec:
           failureThreshold: 3
         env:
         - name: GOMEMLIMIT
-          value: "460MiB"
+          value: "900MiB"
+        - name: GOGC
+          value: "25"
         resources:
           limits:
             cpu: 500m
-            memory: 512Mi
+            memory: 1Gi
           requests:
             cpu: 10m
             memory: 128Mi

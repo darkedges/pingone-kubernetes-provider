@@ -21,18 +21,8 @@ import (
 
 // ReleaseExists reports whether a Helm release with the given name is already installed.
 func ReleaseExists(cfg *action.Configuration, releaseName string) bool {
-	list := action.NewList(cfg)
-	list.All = true
-	releases, err := list.Run()
-	if err != nil {
-		return false
-	}
-	for _, r := range releases {
-		if r.Name == releaseName {
-			return true
-		}
-	}
-	return false
+	_, err := action.NewGet(cfg).Run(releaseName)
+	return err == nil
 }
 
 // MergeValues deep-merges override (raw JSON from a RawExtension) on top of base.
@@ -58,6 +48,7 @@ func InstallOrUpgrade(cfg *action.Configuration, releaseName, namespace string, 
 		}
 		up := action.NewUpgrade(cfg)
 		up.ReuseValues = false
+		up.MaxHistory = 3
 		_, err := up.Run(releaseName, ch, values)
 		return err
 	}
