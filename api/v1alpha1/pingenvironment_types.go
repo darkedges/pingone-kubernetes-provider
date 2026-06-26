@@ -157,6 +157,9 @@ type PingAccessConfig struct {
 	AdminWaitForTimeout int32 `json:"adminWaitForTimeout,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -214,6 +217,9 @@ type PingAuthorizeConfig struct {
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// EncryptionSecretRef is the name of a Secret containing the encryption passphrase (ENCRYPTION_PASSWORD_FILE).
 	EncryptionSecretRef string `json:"encryptionSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -257,6 +263,9 @@ type PingAuthorizePAPConfig struct {
 	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
 	// SharedSecretRef is the name of a Secret containing DECISION_POINT_SHARED_SECRET for PAZ integration.
 	SharedSecretRef string `json:"sharedSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -394,6 +403,9 @@ type PingFederateConfig struct {
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
 	// LDAPSecretRef is the name of a Secret containing PF_LDAP_PASSWORD.
 	LDAPSecretRef string `json:"ldapSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -464,6 +476,9 @@ type PingDirectoryConfig struct {
 	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
 	// AdminSecretRef is the name of a Secret containing admin credentials.
 	AdminSecretRef string `json:"adminSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -585,6 +600,9 @@ type PingDataSyncConfig struct {
 	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
 	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
 	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -653,6 +671,9 @@ type PingDirectoryProxyConfig struct {
 	KeystoreSecretRef string `json:"keystoreSecretRef,omitempty"`
 	// TruststoreSecretRef is the name of a Secret containing the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
 	TruststoreSecretRef string `json:"truststoreSecretRef,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
 	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
 	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
 }
@@ -729,9 +750,9 @@ type PingEnvironmentSpec struct {
 	// IncludeVolumes lists volume names (from spec.volumes) to mount into every product's
 	// workload in this environment. Maps to global.includeVolumes in the ping-devops chart.
 	IncludeVolumes []string `json:"includeVolumes,omitempty"`
-	// Env is a map of additional environment variables injected into every product container
-	// in this environment. Maps to global.env in the ping-devops Helm chart.
-	Env map[string]string `json:"env,omitempty"`
+	// Envs is a map of additional environment variables injected into every product container
+	// in this environment. Maps to global.envs in the ping-devops Helm chart.
+	Envs map[string]string `json:"envs,omitempty"`
 }
 
 // PingEnvironmentStatus defines the observed state of PingEnvironment.

@@ -63,12 +63,12 @@ spec:
                   Domain is the base DNS domain for this environment. Component hostnames are derived
                   from this value when not explicitly set (e.g. pf.<domain>, pf-admin.<domain>).
                 type: string
-              env:
+              envs:
                 additionalProperties:
                   type: string
                 description: |-
-                  Env is a map of additional environment variables injected into every product container
-                  in this environment. Maps to global.env in the ping-devops Helm chart.
+                  Envs is a map of additional environment variables injected into every product container
+                  in this environment. Maps to global.envs in the ping-devops Helm chart.
                 type: object
               includeVolumes:
                 description: |-

@@ -355,6 +355,10 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		// Logging
 		pfEnvs["TAIL_LOG_FILES"] = "${SERVER_ROOT_DIR}/log/server.log"
 
+		for k, v := range pfCfg.Envs {
+			pfEnvs[k] = v
+		}
+
 		// Build PingFederate envFrom (container.envFrom list)
 		var pfEnvFrom []map[string]any
 		if pfCfg.AdminSecretRef != "" {
@@ -545,6 +549,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pdCfg.TruststoreSecretRef != "" {
 			pdEnvFrom = append(pdEnvFrom, secretEnvFrom(pdCfg.TruststoreSecretRef))
 		}
+		for k, v := range pdCfg.Envs {
+			pdEnvs[k] = v
+		}
 		if pdCfg.EnvConfigMapRef != "" {
 			pdEnvFrom = append(pdEnvFrom, configMapEnvFrom(pdCfg.EnvConfigMapRef))
 		}
@@ -699,6 +706,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			paEnvs["ADMIN_WAITFOR_TIMEOUT"] = fmt.Sprintf("%d", paCfg.AdminWaitForTimeout)
 		}
 
+		for k, v := range paCfg.Envs {
+			paEnvs[k] = v
+		}
 		var paEnvFrom []map[string]any
 		if paCfg.AdminSecretRef != "" {
 			paEnvFrom = append(paEnvFrom, secretEnvFrom(paCfg.AdminSecretRef))
@@ -803,6 +813,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		emitServerProfileEnvs(pazEnvs, pazCfg.ServerProfile, pazCfg.ServerProfileLayers)
 
+		for k, v := range pazCfg.Envs {
+			pazEnvs[k] = v
+		}
 		var pazEnvFrom []map[string]any
 		if pazCfg.AdminSecretRef != "" {
 			pazEnvFrom = append(pazEnvFrom, secretEnvFrom(pazCfg.AdminSecretRef))
@@ -942,6 +955,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if papCfg.KeystoreSecretRef != "" {
 			papEnvFrom = append(papEnvFrom, secretEnvFrom(papCfg.KeystoreSecretRef))
 		}
+		for k, v := range papCfg.Envs {
+			papEnvs[k] = v
+		}
 		if papCfg.EnvConfigMapRef != "" {
 			papEnvFrom = append(papEnvFrom, configMapEnvFrom(papCfg.EnvConfigMapRef))
 		}
@@ -1047,6 +1063,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		}
 		if pdsCfg.TruststoreSecretRef != "" {
 			pdsEnvFrom = append(pdsEnvFrom, secretEnvFrom(pdsCfg.TruststoreSecretRef))
+		}
+		for k, v := range pdsCfg.Envs {
+			pdsEnvs[k] = v
 		}
 		if pdsCfg.EnvConfigMapRef != "" {
 			pdsEnvFrom = append(pdsEnvFrom, configMapEnvFrom(pdsCfg.EnvConfigMapRef))
@@ -1162,6 +1181,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		if pdpCfg.TruststoreSecretRef != "" {
 			pdpEnvFrom = append(pdpEnvFrom, secretEnvFrom(pdpCfg.TruststoreSecretRef))
 		}
+		for k, v := range pdpCfg.Envs {
+			pdpEnvs[k] = v
+		}
 		if pdpCfg.EnvConfigMapRef != "" {
 			pdpEnvFrom = append(pdpEnvFrom, configMapEnvFrom(pdpCfg.EnvConfigMapRef))
 		}
@@ -1235,13 +1257,12 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		globalValues["includeVolumes"] = env.IncludeVolumes
 	}
 
-	// Emit global.env — additional environment variables injected into every product container.
-	if len(env.Env) > 0 {
-		envMap := make(map[string]any, len(env.Env))
-		for k, v := range env.Env {
-			envMap[k] = v
+	// Merge spec.envs into global.envs so user-supplied vars are applied to every product.
+	if len(env.Envs) > 0 {
+		globalEnvs := globalValues["envs"].(map[string]any)
+		for k, v := range env.Envs {
+			globalEnvs[k] = v
 		}
-		globalValues["env"] = envMap
 	}
 
 	var err error

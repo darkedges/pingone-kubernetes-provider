@@ -74,6 +74,13 @@ spec:
                     description: EnvConfigMapRef is the name of a ConfigMap with additional
                       env vars to inject.
                     type: string
+                  envs:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Envs is a map of additional environment variables to inject into this product's container.
+                      Keys override any built-in env vars with the same name.
+                    type: object
                   failOnDisabledBaseDN:
                     description: 'FailOnDisabledBaseDN fails the container if USER_BASE_DN
                       replication is not enabled (FAIL_ON_DISABLED_BASE_DN). Default:

@@ -72,6 +72,13 @@ func (in *PingFederateConfig) DeepCopyInto(out *PingFederateConfig) {
 		x := *in.EnableAutomaticHeapDump
 		out.EnableAutomaticHeapDump = &x
 	}
+	if in.Envs != nil {
+		in, out := &in.Envs, &out.Envs
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 }
 
 // DeepCopy creates a deep copy of PingFederateConfig.
@@ -96,6 +103,13 @@ func (in *PingDataSyncConfig) DeepCopyInto(out *PingDataSyncConfig) {
 		in, out := &in.ServerProfileLayers, &out.ServerProfileLayers
 		*out = make([]ServerProfileLayerSpec, len(*in))
 		copy(*out, *in)
+	}
+	if in.Envs != nil {
+		in, out := &in.Envs, &out.Envs
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 }
 
@@ -142,6 +156,13 @@ func (in *PingDirectoryProxyConfig) DeepCopyInto(out *PingDirectoryProxyConfig) 
 		*out = make([]ServerProfileLayerSpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.Envs != nil {
+		in, out := &in.Envs, &out.Envs
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 }
 
 // DeepCopy creates a deep copy of PingDirectoryProxyConfig.
@@ -186,6 +207,13 @@ func (in *PingDirectoryConfig) DeepCopyInto(out *PingDirectoryConfig) {
 		in, out := &in.ServerProfileLayers, &out.ServerProfileLayers
 		*out = make([]ServerProfileLayerSpec, len(*in))
 		copy(*out, *in)
+	}
+	if in.Envs != nil {
+		in, out := &in.Envs, &out.Envs
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 }
 
@@ -314,8 +342,8 @@ func (in *PingEnvironmentSpec) DeepCopyInto(out *PingEnvironmentSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.Env != nil {
-		in, out := &in.Env, &out.Env
+	if in.Envs != nil {
+		in, out := &in.Envs, &out.Envs
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
