@@ -63,12 +63,12 @@ var registry = []product{
 // skipPrefixes: any env var whose name starts with one of these is a container
 // infrastructure or PingBase toolkit var, never surfaced as a CRD field.
 var skipPrefixes = []string{
-	"SERVER_PROFILE_",  // handled via ServerProfileSpec / ServerProfileLayerSpec
-	"PING_IDENTITY_",   // devops licensing
-	"STARTUP_",         // container entrypoint internals
-	"LICENSE_",         // licensing internals
-	"IMAGE_",           // build metadata
-	"PING_PRODUCT",     // product metadata
+	"SERVER_PROFILE_", // handled via ServerProfileSpec / ServerProfileLayerSpec
+	"PING_IDENTITY_",  // devops licensing
+	"STARTUP_",        // container entrypoint internals
+	"LICENSE_",        // licensing internals
+	"IMAGE_",          // build metadata
+	"PING_PRODUCT",    // product metadata
 	"SHIM",
 	"DATE",
 	"ENV",
@@ -95,22 +95,22 @@ var skipExact = map[string]bool{
 	// runtime / shell
 	"JAVA_HOME": true, "JVM_TUNING": true,
 	"TAIL_LOG_FILES": true, "ROOT_USER_DN": true,
-	"CLUSTER_BIND_ADDRESS": true, // auto-set by operator when OPERATIONAL_MODE != STANDALONE
-	"CLEAN_STAGING_DIR": true,
+	"CLUSTER_BIND_ADDRESS":   true, // auto-set by operator when OPERATIONAL_MODE != STANDALONE
+	"CLEAN_STAGING_DIR":      true,
 	"SECURITY_CHECKS_STRICT": true, "SECURITY_CHECKS_FILENAME": true,
-	"UNSAFE_CONTINUE_ON_ERROR": true,
+	"UNSAFE_CONTINUE_ON_ERROR":  true,
 	"SERVER_PROFILE_URL_REDACT": true,
-	"SHOW_LIBS_VER": true, "SHOW_LIBS_VER_PRE_PATCH": true,
+	"SHOW_LIBS_VER":             true, "SHOW_LIBS_VER_PRE_PATCH": true,
 	"DOLLAR": true,
 
 	// build metadata
 	"PING_PRODUCT_VERSION": true,
 
 	// credentials — never surfaced as plain string fields
-	"ROOT_USER_PASSWORD_FILE": true,
-	"ADMIN_USER_PASSWORD_FILE": true,
-	"ENCRYPTION_PASSWORD_FILE": true,
-	"PF_LDAP_PASSWORD": true,
+	"ROOT_USER_PASSWORD_FILE":   true,
+	"ADMIN_USER_PASSWORD_FILE":  true,
+	"ENCRYPTION_PASSWORD_FILE":  true,
+	"PF_LDAP_PASSWORD":          true,
 	"PING_IDENTITY_ACCEPT_EULA": true,
 
 	// other-product hostnames that appear in cross-product READMEs
@@ -118,7 +118,7 @@ var skipExact = map[string]bool{
 	"PAZP_ENGINE_PUBLIC_HOSTNAME": true, "PAZP_ENGINE_PRIVATE_HOSTNAME": true,
 	"PA_ENGINE_PUBLIC_HOSTNAME": true, "PA_ENGINE_PRIVATE_HOSTNAME": true,
 	"PA_ADMIN_PUBLIC_HOSTNAME": true, "PA_ADMIN_PRIVATE_HOSTNAME": true,
-	"PD_ENGINE_PUBLIC_HOSTNAME": true,
+	"PD_ENGINE_PUBLIC_HOSTNAME":  true,
 	"PDP_ENGINE_PUBLIC_HOSTNAME": true, "PDS_ENGINE_PUBLIC_HOSTNAME": true,
 
 	// UNBOUNDID_SKIP_START_PRECHECK_NODETACH is hardcoded true by the operator

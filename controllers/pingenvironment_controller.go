@@ -150,9 +150,15 @@ func (r *PingEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	releaseName := fmt.Sprintf("%s-ping", env.Spec.TenantID)
 
-	if err := r.deployPingDevops(cfg, env, releaseName, targetNS, products); err != nil {
+	helmAction, err := r.deployPingDevops(cfg, env, releaseName, targetNS, products)
+	if err != nil {
 		logger.Error(err, "failed to deploy ping-devops")
 		return r.setFailed(ctx, env, releaseName, lists, "DeployFailed", err.Error())
+	}
+	if helmAction == helmclient.ActionUnchanged {
+		logger.V(1).Info("helm release unchanged; upgrade skipped", "release", releaseName)
+	} else {
+		logger.Info("reconciled helm release", "release", releaseName, "action", helmAction)
 	}
 
 	return r.setReady(ctx, env, releaseName, lists)
@@ -286,15 +292,17 @@ func (r *PingEnvironmentReconciler) handleDeletion(ctx context.Context, env *pin
 	return ctrl.Result{}, r.Update(ctx, env)
 }
 
-func (r *PingEnvironmentReconciler) deployPingDevops(cfg *action.Configuration, env *pingonev1alpha1.PingEnvironment, releaseName, namespace string, products helmclient.ProductSpecs) error {
+// deployPingDevops renders the values and installs or upgrades the release,
+// returning the Helm action taken (installed / upgraded / unchanged).
+func (r *PingEnvironmentReconciler) deployPingDevops(cfg *action.Configuration, env *pingonev1alpha1.PingEnvironment, releaseName, namespace string, products helmclient.ProductSpecs) (string, error) {
 	values, err := helmclient.BuildPingValues(env.Spec, products)
 	if err != nil {
-		return fmt.Errorf("build ping values: %w", err)
+		return "", fmt.Errorf("build ping values: %w", err)
 	}
 
 	ch, err := r.loadChart()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	return helmclient.InstallOrUpgrade(cfg, releaseName, namespace, ch, values, true)

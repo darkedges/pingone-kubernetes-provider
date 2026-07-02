@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/release"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	pingonev1alpha1 "github.com/darkedges/pingone-operator/api/v1alpha1"
@@ -411,5 +413,137 @@ func TestBuildPingValues_PingDirectory_ServerProfileURL(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("envs[%q] = %q, want %q", tc.key, got, tc.want)
 		}
+	}
+}
+
+// ---- releaseUnchanged / jsonEqual ------------------------------------------
+
+func TestJSONEqual(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		a, b map[string]any
+		want bool
+	}{
+		{
+			// Helm's storage round-trip turns int32 into float64 and []string
+			// into []interface{}; jsonEqual must treat those as identical.
+			name: "helm storage type round-trip",
+			a:    map[string]any{"replicas": int32(3), "hosts": []string{"a", "b"}},
+			b:    map[string]any{"replicas": float64(3), "hosts": []any{"a", "b"}},
+			want: true,
+		},
+		{
+			name: "key order irrelevant",
+			a:    map[string]any{"x": 1, "y": 2},
+			b:    map[string]any{"y": 2, "x": 1},
+			want: true,
+		},
+		{
+			name: "differing values",
+			a:    map[string]any{"replicas": 3},
+			b:    map[string]any{"replicas": 4},
+			want: false,
+		},
+		{
+			name: "missing key",
+			a:    map[string]any{"x": 1, "y": 2},
+			b:    map[string]any{"x": 1},
+			want: false,
+		},
+		{
+			name: "both nil",
+			a:    nil,
+			b:    nil,
+			want: true,
+		},
+		{
+			name: "unmarshalable value",
+			a:    map[string]any{"bad": func() {}},
+			b:    map[string]any{"bad": func() {}},
+			want: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := jsonEqual(tc.a, tc.b); got != tc.want {
+				t.Errorf("jsonEqual = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestReleaseUnchanged(t *testing.T) {
+	values := map[string]any{"pingfederate": map[string]any{"enabled": true, "replicas": int32(2)}}
+	// Simulate Helm's storage round-trip of the same values.
+	storedValues := map[string]any{"pingfederate": map[string]any{"enabled": true, "replicas": float64(2)}}
+
+	newChart := func(version string) *chart.Chart {
+		return &chart.Chart{Metadata: &chart.Metadata{Name: "ping-devops", Version: version}}
+	}
+	newRelease := func(status release.Status, chartVersion string, config map[string]any) *release.Release {
+		return &release.Release{
+			Info:   &release.Info{Status: status},
+			Chart:  newChart(chartVersion),
+			Config: config,
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		rel  *release.Release
+		ch   *chart.Chart
+		want bool
+	}{
+		{
+			name: "deployed with matching version and values",
+			rel:  newRelease(release.StatusDeployed, "0.12.2", storedValues),
+			ch:   newChart("0.12.2"),
+			want: true,
+		},
+		{
+			name: "values differ",
+			rel: newRelease(release.StatusDeployed, "0.12.2",
+				map[string]any{"pingfederate": map[string]any{"enabled": true, "replicas": float64(3)}}),
+			ch:   newChart("0.12.2"),
+			want: false,
+		},
+		{
+			name: "chart version differs",
+			rel:  newRelease(release.StatusDeployed, "0.12.1", storedValues),
+			ch:   newChart("0.12.2"),
+			want: false,
+		},
+		{
+			name: "failed release always upgraded",
+			rel:  newRelease(release.StatusFailed, "0.12.2", storedValues),
+			ch:   newChart("0.12.2"),
+			want: false,
+		},
+		{
+			name: "pending release always upgraded",
+			rel:  newRelease(release.StatusPendingUpgrade, "0.12.2", storedValues),
+			ch:   newChart("0.12.2"),
+			want: false,
+		},
+		{
+			name: "nil release info",
+			rel:  &release.Release{Chart: newChart("0.12.2"), Config: storedValues},
+			ch:   newChart("0.12.2"),
+			want: false,
+		},
+		{
+			name: "nil release chart",
+			rel: &release.Release{
+				Info:   &release.Info{Status: release.StatusDeployed},
+				Config: storedValues,
+			},
+			ch:   newChart("0.12.2"),
+			want: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := releaseUnchanged(tc.rel, tc.ch, values); got != tc.want {
+				t.Errorf("releaseUnchanged = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

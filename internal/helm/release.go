@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
+	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,18 +23,24 @@ import (
 	pingonev1alpha1 "github.com/darkedges/pingone-operator/api/v1alpha1"
 )
 
-// ReleaseExists reports whether a Helm release with the given name is already installed.
-// A non-nil error means the release state could not be determined (e.g. a transient
-// API failure) and must not be treated as "release absent".
-func ReleaseExists(cfg *action.Configuration, releaseName string) (bool, error) {
-	_, err := action.NewGet(cfg).Run(releaseName)
+// getRelease fetches the named release, returning (nil, nil) when it does not
+// exist. A non-nil error means the release state could not be determined (e.g. a
+// transient API failure) and must not be treated as "release absent".
+func getRelease(cfg *action.Configuration, releaseName string) (*release.Release, error) {
+	rel, err := action.NewGet(cfg).Run(releaseName)
 	if err == nil {
-		return true, nil
+		return rel, nil
 	}
 	if errors.Is(err, driver.ErrReleaseNotFound) {
-		return false, nil
+		return nil, nil
 	}
-	return false, fmt.Errorf("get release %s: %w", releaseName, err)
+	return nil, fmt.Errorf("get release %s: %w", releaseName, err)
+}
+
+// ReleaseExists reports whether a Helm release with the given name is already installed.
+func ReleaseExists(cfg *action.Configuration, releaseName string) (bool, error) {
+	rel, err := getRelease(cfg, releaseName)
+	return rel != nil, err
 }
 
 // MergeValues deep-merges override (raw JSON from a RawExtension) on top of base.
@@ -48,30 +56,73 @@ func MergeValues(base map[string]any, override runtime.RawExtension) (map[string
 	return mergeMaps(base, extra), nil
 }
 
+// Actions reported by InstallOrUpgrade.
+const (
+	ActionInstalled = "installed"
+	ActionUpgraded  = "upgraded"
+	ActionUnchanged = "unchanged"
+	ActionSkipped   = "skipped"
+)
+
 // InstallOrUpgrade installs a Helm chart for the first time or upgrades an existing release.
 // upgrade controls whether an existing release is upgraded; if false and the release exists,
-// this is a no-op.
-func InstallOrUpgrade(cfg *action.Configuration, releaseName, namespace string, ch *chart.Chart, values map[string]any, upgrade bool) error {
-	exists, err := ReleaseExists(cfg, releaseName)
+// this is a no-op. When the deployed release already matches the desired chart version and
+// values, the upgrade is skipped. Returns the action taken.
+func InstallOrUpgrade(cfg *action.Configuration, releaseName, namespace string, ch *chart.Chart, values map[string]any, upgrade bool) (string, error) {
+	rel, err := getRelease(cfg, releaseName)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if exists {
+	if rel != nil {
 		if !upgrade {
-			return nil
+			return ActionSkipped, nil
+		}
+		if releaseUnchanged(rel, ch, values) {
+			return ActionUnchanged, nil
 		}
 		up := action.NewUpgrade(cfg)
 		up.ReuseValues = false
 		up.MaxHistory = 3
 		_, err := up.Run(releaseName, ch, values)
-		return err
+		return ActionUpgraded, err
 	}
 	inst := action.NewInstall(cfg)
 	inst.ReleaseName = releaseName
 	inst.Namespace = namespace
 	inst.CreateNamespace = false
 	_, err = inst.Run(ch, values)
-	return err
+	return ActionInstalled, err
+}
+
+// releaseUnchanged reports whether the deployed release already matches the
+// desired chart version and values, meaning an upgrade would be a no-op.
+// Releases in any state other than "deployed" (failed, pending, ...) are always
+// upgraded so the operator can drive them back to a good state.
+func releaseUnchanged(rel *release.Release, ch *chart.Chart, values map[string]any) bool {
+	if rel.Info == nil || rel.Info.Status != release.StatusDeployed {
+		return false
+	}
+	if rel.Chart == nil || rel.Chart.Metadata == nil || ch.Metadata == nil ||
+		rel.Chart.Metadata.Version != ch.Metadata.Version {
+		return false
+	}
+	return jsonEqual(rel.Config, values)
+}
+
+// jsonEqual compares two values maps by their JSON encodings. json.Marshal
+// sorts map keys and normalizes the numeric/slice type differences introduced
+// by Helm's storage round-trip (int32 vs float64, []string vs []interface{}),
+// so structurally identical values compare equal regardless of Go types.
+func jsonEqual(a, b map[string]any) bool {
+	ja, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	jb, err := json.Marshal(b)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(ja, jb)
 }
 
 // DownloadChart downloads a chart from repoURL into cacheDir and returns the local path.
