@@ -18,6 +18,8 @@ CONTROLLER_GEN_VERSION  ?= v0.16.4
 KUSTOMIZE_VERSION       ?= v5.4.3
 GOLANGCI_LINT_VERSION   ?= v1.61.0
 ENVTEST_VERSION         ?= release-0.19
+# Kubernetes version of the envtest binaries (kube-apiserver, etcd) — matches k8s.io/* v0.31.x deps.
+ENVTEST_K8S_VERSION     ?= 1.31.0
 
 # Tool paths
 CONTROLLER_GEN  := $(TOOLS_DIR)/controller-gen
@@ -114,7 +116,7 @@ manifests: $(CONTROLLER_GEN) ## Generate CRD and RBAC manifests into config/
 
 .PHONY: test
 test: generate fmt vet $(ENVTEST) ## Run unit and controller tests with envtest
-	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_VERSION) --bin-path $(TOOLS_DIR)/envtest -p path)" \
+	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(TOOLS_DIR)/envtest -p path)" \
 	  go test ./... -coverprofile cover.out -v
 
 .PHONY: test-unit
