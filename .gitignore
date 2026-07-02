@@ -27,3 +27,8 @@ vendor/
 REGISTRY.md
 dist/pingone-operator-0.1.0.tgz
 COMMIT.md
+claude-instructions.md
+claude-memory.md
+CLAUDE.md
+CODE_REVIEW.md
+provider.code-workspace
