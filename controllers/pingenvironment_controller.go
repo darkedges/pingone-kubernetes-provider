@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -52,11 +53,33 @@ type productCRLists struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // PingEnvironmentReconciler reconciles a PingEnvironment object.
+// The cached fields are not mutex-protected: the controller runs with the
+// default MaxConcurrentReconciles of 1, so Reconcile is never concurrent.
 type PingEnvironmentReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	RESTConfig *rest.Config
+	Scheme      *runtime.Scheme
+	RESTConfig  *rest.Config
 	cachedChart *helmChart
+	// helmConfigs caches one action.Configuration per target namespace so the
+	// discovery client and REST mapper are not rebuilt on every reconcile.
+	helmConfigs map[string]*action.Configuration
+}
+
+// helmConfigFor returns a cached Helm action.Configuration for the namespace,
+// creating and caching it on first use.
+func (r *PingEnvironmentReconciler) helmConfigFor(namespace string) (*action.Configuration, error) {
+	if cfg, ok := r.helmConfigs[namespace]; ok {
+		return cfg, nil
+	}
+	cfg, err := helmclient.NewHelmClient(namespace, r.RESTConfig)
+	if err != nil {
+		return nil, err
+	}
+	if r.helmConfigs == nil {
+		r.helmConfigs = make(map[string]*action.Configuration)
+	}
+	r.helmConfigs[namespace] = cfg
+	return cfg, nil
 }
 
 // helmChart holds the loaded chart and the path it was loaded from, so we only
@@ -82,23 +105,11 @@ func (r *PingEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // enqueueFromEnvironmentRef extracts the PingEnvironment name from a product CR and enqueues it.
 func enqueueFromEnvironmentRef(_ context.Context, obj client.Object) []reconcile.Request {
-	var ref string
-	switch o := obj.(type) {
-	case *pingonev1alpha1.PingFederate:
-		ref = o.Spec.EnvironmentRef
-	case *pingonev1alpha1.PingDirectory:
-		ref = o.Spec.EnvironmentRef
-	case *pingonev1alpha1.PingAccess:
-		ref = o.Spec.EnvironmentRef
-	case *pingonev1alpha1.PingAuthorize:
-		ref = o.Spec.EnvironmentRef
-	case *pingonev1alpha1.PingAuthorizePAP:
-		ref = o.Spec.EnvironmentRef
-	case *pingonev1alpha1.PingDataSync:
-		ref = o.Spec.EnvironmentRef
-	case *pingonev1alpha1.PingDirectoryProxy:
-		ref = o.Spec.EnvironmentRef
+	po, ok := obj.(ProductObject)
+	if !ok {
+		return nil
 	}
+	ref := po.GetEnvironmentRef()
 	if ref == "" {
 		return nil
 	}
@@ -118,8 +129,7 @@ func (r *PingEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return r.handleDeletion(ctx, env)
 	}
 
-	if !containsFinalizer(env.Finalizers, finalizerName) {
-		env.Finalizers = append(env.Finalizers, finalizerName)
+	if controllerutil.AddFinalizer(env, finalizerName) {
 		return ctrl.Result{Requeue: true}, r.Update(ctx, env)
 	}
 
@@ -128,7 +138,7 @@ func (r *PingEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		targetNS = env.Namespace
 	}
 
-	cfg, err := helmclient.NewHelmClient(targetNS, r.RESTConfig)
+	cfg, err := r.helmConfigFor(targetNS)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("helm client: %w", err)
 	}
@@ -254,7 +264,7 @@ func (r *PingEnvironmentReconciler) handleDeletion(ctx context.Context, env *pin
 	if targetNS == "" {
 		targetNS = env.Namespace
 	}
-	cfg, err := helmclient.NewHelmClient(targetNS, r.RESTConfig)
+	cfg, err := r.helmConfigFor(targetNS)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("helm client: %w", err)
 	}
@@ -272,7 +282,7 @@ func (r *PingEnvironmentReconciler) handleDeletion(ctx context.Context, env *pin
 		}
 	}
 
-	env.Finalizers = removeFinalizer(env.Finalizers, finalizerName)
+	controllerutil.RemoveFinalizer(env, finalizerName)
 	return ctrl.Result{}, r.Update(ctx, env)
 }
 

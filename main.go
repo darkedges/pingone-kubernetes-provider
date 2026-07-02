@@ -67,62 +67,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	// One entry per product CR kind: drives both the environmentRef field index
+	// and the shared product controller registration.
+	products := []struct {
+		kind string
+		new  func() controllers.ProductObject
+	}{
+		{"PingFederate", func() controllers.ProductObject { return &pingonev1alpha1.PingFederate{} }},
+		{"PingDirectory", func() controllers.ProductObject { return &pingonev1alpha1.PingDirectory{} }},
+		{"PingAccess", func() controllers.ProductObject { return &pingonev1alpha1.PingAccess{} }},
+		{"PingAuthorize", func() controllers.ProductObject { return &pingonev1alpha1.PingAuthorize{} }},
+		{"PingAuthorizePAP", func() controllers.ProductObject { return &pingonev1alpha1.PingAuthorizePAP{} }},
+		{"PingDataSync", func() controllers.ProductObject { return &pingonev1alpha1.PingDataSync{} }},
+		{"PingDirectoryProxy", func() controllers.ProductObject { return &pingonev1alpha1.PingDirectoryProxy{} }},
+	}
+
 	// Register field indexes so product CRs can be listed by environmentRef.
 	ctx := context.Background()
-	type indexSpec struct {
-		obj   client.Object
-		field string
-		fn    client.IndexerFunc
-	}
-	for _, idx := range []indexSpec{
-		{
-			&pingonev1alpha1.PingFederate{},
-			"spec.environmentRef",
-			func(o client.Object) []string { return []string{o.(*pingonev1alpha1.PingFederate).Spec.EnvironmentRef} },
-		},
-		{
-			&pingonev1alpha1.PingDirectory{},
-			"spec.environmentRef",
-			func(o client.Object) []string {
-				return []string{o.(*pingonev1alpha1.PingDirectory).Spec.EnvironmentRef}
-			},
-		},
-		{
-			&pingonev1alpha1.PingAccess{},
-			"spec.environmentRef",
-			func(o client.Object) []string { return []string{o.(*pingonev1alpha1.PingAccess).Spec.EnvironmentRef} },
-		},
-		{
-			&pingonev1alpha1.PingAuthorize{},
-			"spec.environmentRef",
-			func(o client.Object) []string {
-				return []string{o.(*pingonev1alpha1.PingAuthorize).Spec.EnvironmentRef}
-			},
-		},
-		{
-			&pingonev1alpha1.PingAuthorizePAP{},
-			"spec.environmentRef",
-			func(o client.Object) []string {
-				return []string{o.(*pingonev1alpha1.PingAuthorizePAP).Spec.EnvironmentRef}
-			},
-		},
-		{
-			&pingonev1alpha1.PingDataSync{},
-			"spec.environmentRef",
-			func(o client.Object) []string {
-				return []string{o.(*pingonev1alpha1.PingDataSync).Spec.EnvironmentRef}
-			},
-		},
-		{
-			&pingonev1alpha1.PingDirectoryProxy{},
-			"spec.environmentRef",
-			func(o client.Object) []string {
-				return []string{o.(*pingonev1alpha1.PingDirectoryProxy).Spec.EnvironmentRef}
-			},
-		},
-	} {
-		if err := mgr.GetFieldIndexer().IndexField(ctx, idx.obj, idx.field, idx.fn); err != nil {
-			setupLog.Error(err, "unable to index field", "field", idx.field)
+	for _, p := range products {
+		if err := mgr.GetFieldIndexer().IndexField(ctx, p.new(), "spec.environmentRef", func(o client.Object) []string {
+			return []string{o.(controllers.ProductObject).GetEnvironmentRef()}
+		}); err != nil {
+			setupLog.Error(err, "unable to index field", "kind", p.kind)
 			os.Exit(1)
 		}
 	}
@@ -136,53 +102,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.PingFederateReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingFederate")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PingDirectoryReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingDirectory")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PingAccessReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingAccess")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PingAuthorizeReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingAuthorize")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PingAuthorizePAPReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingAuthorizePAP")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PingDataSyncReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingDataSync")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PingDirectoryProxyReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PingDirectoryProxy")
-		os.Exit(1)
+	for _, p := range products {
+		if err = (&controllers.ProductReconciler{
+			Client:    mgr.GetClient(),
+			NewObject: p.new,
+			Kind:      p.kind,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", p.kind)
+			os.Exit(1)
+		}
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

@@ -68,7 +68,7 @@ func TestApplyRawVolumes_PreservesNameField(t *testing.T) {
 	container := pingonev1alpha1.ContainerSpec{
 		Volumes: []runtime.RawExtension{
 			mustRaw(map[string]any{
-				"name":   "app-config",
+				"name":      "app-config",
 				"configMap": map[string]any{"name": "app-config"},
 			}),
 		},
