@@ -341,6 +341,7 @@ spec:
                 description: 'Replicas is the desired number of PingDirectory pods.
                   Default: 1.'
                 format: int32
+                minimum: 0
                 type: integer
               service:
                 description: |-

@@ -173,6 +173,7 @@ type PingAccessSpec struct {
 	// Version is the container image tag or full image reference (e.g. 8.1.0-edge).
 	Version string `json:"version,omitempty"`
 	// Replicas is the desired number of PingAccess engine pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// AdminIngress configures the Kubernetes Ingress for the PingAccess admin console.
 	// Hostname defaults to pa-admin.<spec.domain> when spec.domain is set.
@@ -301,6 +302,7 @@ type PingAuthorizeSpec struct {
 	// Version is the container image tag or full image reference (e.g. 10.3.0.0-edge).
 	Version string `json:"version,omitempty"`
 	// Replicas is the desired number of PingAuthorize pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// StorageClass is the storage class used for PersistentVolumeClaims.
 	StorageClass string `json:"storageClass,omitempty"`
@@ -494,6 +496,7 @@ type PingFederateSpec struct {
 	// Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
 	// Replicas is the desired number of PingFederate engine pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// EngineIngress configures the Kubernetes Ingress for the PingFederate runtime engine.
 	// Hostname defaults to pf.<spec.domain> when spec.domain is set.
@@ -547,6 +550,7 @@ type PingDirectorySpec struct {
 	// Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
 	// Replicas is the desired number of PingDirectory pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// StorageClass is the storage class used for PersistentVolumeClaims.
 	StorageClass string `json:"storageClass,omitempty"`
@@ -616,6 +620,7 @@ type PingDataSyncSpec struct {
 	// Version is the container image tag. Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
 	// Replicas is the desired number of PingDataSync pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// StorageClass is the storage class used for PersistentVolumeClaims.
 	StorageClass string `json:"storageClass,omitempty"`
@@ -687,6 +692,7 @@ type PingDirectoryProxySpec struct {
 	// Version is the container image tag. Omit to use the chart's default tag.
 	Version string `json:"version,omitempty"`
 	// Replicas is the desired number of PingDirectoryProxy pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// StorageClass is the storage class used for PersistentVolumeClaims.
 	StorageClass string `json:"storageClass,omitempty"`
@@ -708,8 +714,14 @@ type PingDirectoryProxySpec struct {
 // PingEnvironmentSpec defines the desired state of PingEnvironment.
 type PingEnvironmentSpec struct {
 	// TenantID is the PingOne tenant identifier used to name Helm releases.
+	// It must be a valid DNS-1123 label fragment: the operator derives release,
+	// service, and TLS secret names from it (e.g. <tenantId>-ping).
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=30
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	TenantID string `json:"tenantId"`
 	// Tier is one of: development, staging, production.
+	// +kubebuilder:validation:Enum=development;staging;production
 	Tier string `json:"tier"`
 	// Domain is the base DNS domain for this environment. Component hostnames are derived
 	// from this value when not explicitly set (e.g. pf.<domain>, pf-admin.<domain>).

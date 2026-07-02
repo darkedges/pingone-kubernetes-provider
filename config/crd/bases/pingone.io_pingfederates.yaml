@@ -437,6 +437,7 @@ spec:
                 description: 'Replicas is the desired number of PingFederate engine
                   pods. Default: 1.'
                 format: int32
+                minimum: 0
                 type: integer
               service:
                 description: |-

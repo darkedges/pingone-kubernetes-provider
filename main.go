@@ -106,6 +106,20 @@ func main() {
 				return []string{o.(*pingonev1alpha1.PingAuthorizePAP).Spec.EnvironmentRef}
 			},
 		},
+		{
+			&pingonev1alpha1.PingDataSync{},
+			"spec.environmentRef",
+			func(o client.Object) []string {
+				return []string{o.(*pingonev1alpha1.PingDataSync).Spec.EnvironmentRef}
+			},
+		},
+		{
+			&pingonev1alpha1.PingDirectoryProxy{},
+			"spec.environmentRef",
+			func(o client.Object) []string {
+				return []string{o.(*pingonev1alpha1.PingDirectoryProxy).Spec.EnvironmentRef}
+			},
+		},
 	} {
 		if err := mgr.GetFieldIndexer().IndexField(ctx, idx.obj, idx.field, idx.fn); err != nil {
 			setupLog.Error(err, "unable to index field", "field", idx.field)
@@ -154,6 +168,20 @@ func main() {
 		Client: mgr.GetClient(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PingAuthorizePAP")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.PingDataSyncReconciler{
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PingDataSync")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.PingDirectoryProxyReconciler{
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PingDirectoryProxy")
 		os.Exit(1)
 	}
 

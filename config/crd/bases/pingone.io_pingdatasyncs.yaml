@@ -4,14 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: pingfederates.pingone.io
+  name: pingdatasyncs.pingone.io
 spec:
   group: pingone.io
   names:
-    kind: PingFederate
-    listKind: PingFederateList
-    plural: pingfederates
-    singular: pingfederate
+    kind: PingDataSync
+    listKind: PingDataSyncList
+    plural: pingdatasyncs
+    singular: pingdatasync
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -27,7 +27,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PingFederate is the Schema for the pingfederates API.
+        description: PingDataSync is the Schema for the pingdatasyncs API.
         properties:
           apiVersion:
             description: |-
@@ -47,129 +47,25 @@ spec:
           metadata:
             type: object
           spec:
-            description: PingFederateSpec defines the desired state of a PingFederate
+            description: PingDataSyncSpec defines the desired state of a PingDataSync
               deployment.
             properties:
-              adminIngress:
-                description: |-
-                  AdminIngress configures the Kubernetes Ingress for the PingFederate admin console.
-                  Hostname defaults to pf-admin.<spec.domain> when spec.domain is set.
-                properties:
-                  annotations:
-                    additionalProperties:
-                      type: string
-                    description: Annotations are merged on top of the global annotations
-                      for this component.
-                    type: object
-                  className:
-                    description: ClassName overrides the global ingressClassName for
-                      this component.
-                    type: string
-                  enabled:
-                    description: |-
-                      Enabled controls whether an Ingress resource is created for this component.
-                      When nil the value is inherited from spec.ingress.enabled.
-                    type: boolean
-                  hostname:
-                    description: Hostname is the FQDN for this component. Defaults
-                      to <prefix>.<spec.domain> when spec.domain is set.
-                    type: string
-                  tlsSecretRef:
-                    description: TLSSecretRef overrides the global TLS secret name
-                      for this component.
-                    type: string
-                type: object
               config:
-                description: Config holds PingFederate-specific environment variable
+                description: Config holds PingDataSync-specific environment variable
                   configuration.
                 properties:
-                  acceptQueueSize:
-                    description: 'AcceptQueueSize sets the size of the Jetty accept
-                      queue (PF_ACCEPT_QUEUE_SIZE). Default: 512.'
-                    format: int32
-                    type: integer
-                  adminAPIAuthentication:
-                    description: 'AdminAPIAuthentication is the admin API auth mechanism
-                      (PF_ADMIN_API_AUTHENTICATION). Default: native.'
-                    type: string
-                  adminDebug:
-                    description: 'AdminDebug enables Java remote debugging on the
-                      PingFederate admin (PF_ADMIN_DEBUG). Default: false.'
-                    type: boolean
-                  adminPort:
-                    description: 'AdminPort is the HTTPS port for the PingFederate
-                      admin console/API (PF_ADMIN_PORT). Default: 9999.'
-                    format: int32
-                    type: integer
-                  adminPublicBaseURL:
-                    description: AdminPublicBaseURL is the full base URL of the PF
-                      admin console (PF_ADMIN_PUBLIC_BASEURL).
-                    type: string
-                  adminPublicHostname:
-                    description: AdminPublicHostname is the public hostname of the
-                      PF admin node (PF_ADMIN_PUBLIC_HOSTNAME).
-                    type: string
                   adminSecretRef:
                     description: AdminSecretRef is the name of a Secret containing
-                      admin credentials.
+                      admin credentials (ROOT_USER_PASSWORD_FILE / ADMIN_USER_PASSWORD_FILE).
                     type: string
-                  adminWaitForTimeout:
-                    description: 'AdminWaitForTimeout is how long (seconds) to wait
-                      for the admin API before failing (ADMIN_WAITFOR_TIMEOUT). Default:
-                      300.'
-                    format: int32
-                    type: integer
-                  bcFIPSApprovedOnly:
-                    description: 'BCFIPSApprovedOnly restricts the JVM to FIPS-approved
-                      algorithms only (PF_BC_FIPS_APPROVED_ONLY). Default: false.'
-                    type: boolean
-                  consoleAuthentication:
-                    description: 'ConsoleAuthentication is the admin console auth
-                      mechanism (PF_CONSOLE_AUTHENTICATION). Default: native.'
+                  adminUserName:
+                    description: 'AdminUserName is the failover administrative user
+                      (ADMIN_USER_NAME). Default: admin.'
                     type: string
-                  consoleEnvironment:
-                    description: ConsoleEnvironment is the environment label shown
-                      in the admin console UI (PF_CONSOLE_ENV).
+                  certificateNickname:
+                    description: CertificateNickname is the alias of the certificate
+                      to use within the keystore (CERTIFICATE_NICKNAME).
                     type: string
-                  consoleTitle:
-                    description: ConsoleTitle is the title shown in the admin console
-                      (PF_CONSOLE_TITLE).
-                    type: string
-                  createInitialAdminUser:
-                    description: 'CreateInitialAdminUser creates the initial administrator
-                      account after first startup (CREATE_INITIAL_ADMIN_USER). Default:
-                      false.'
-                    type: boolean
-                  debugPort:
-                    description: |-
-                      DebugPort is the Java remote debug listener port (PF_DEBUG_PORT). Default: 9030.
-                      Only meaningful when engineDebug or adminDebug is true.
-                    format: int32
-                    type: integer
-                  enableAutomaticHeapDump:
-                    description: |-
-                      EnableAutomaticHeapDump enables JVM heap dumps on OutOfMemoryError (ENABLE_AUTOMATIC_HEAP_DUMP). Default: true.
-                      Set to false to disable automatic heap dumps.
-                    type: boolean
-                  engineDebug:
-                    description: 'EngineDebug enables Java remote debugging on the
-                      PingFederate engine (PF_ENGINE_DEBUG). Default: false.'
-                    type: boolean
-                  enginePort:
-                    description: 'EnginePort is the HTTPS port for the PingFederate
-                      runtime engine (PF_ENGINE_PORT). Default: 9031.'
-                    format: int32
-                    type: integer
-                  enginePublicHostname:
-                    description: EnginePublicHostname is the public hostname of the
-                      PF engine node (PF_ENGINE_PUBLIC_HOSTNAME).
-                    type: string
-                  engineSecondaryPort:
-                    description: 'EngineSecondaryPort is a secondary HTTPS port for
-                      mutual SSL/TLS client certificate authentication (PF_ENGINE_SECONDARY_PORT).
-                      Default: -1 (disabled).'
-                    format: int32
-                    type: integer
                   envConfigMapRef:
                     description: EnvConfigMapRef is the name of a ConfigMap with additional
                       env vars to inject.
@@ -181,82 +77,37 @@ spec:
                       Envs is a map of additional environment variables to inject into this product's container.
                       Keys override any built-in env vars with the same name.
                     type: object
-                  hsmHybrid:
-                    description: 'HSMHybrid enables HSM hybrid mode where certs/keys
-                      can be created on the local trust store or the HSM (PF_HSM_HYBRID).
+                  keystoreFile:
+                    description: KeystoreFile is the path to the keystore file (KEYSTORE_FILE).
+                    type: string
+                  keystorePinFile:
+                    description: KeystorePinFile is the path to the keystore PIN file
+                      (KEYSTORE_PIN_FILE).
+                    type: string
+                  keystoreSecretRef:
+                    description: KeystoreSecretRef is the name of a Secret containing
+                      the keystore file and PIN (KEYSTORE_FILE / KEYSTORE_PIN_FILE).
+                    type: string
+                  keystoreType:
+                    description: 'KeystoreType is the format of the keystore (KEYSTORE_TYPE).
+                      One of: jks, pkcs12, pem, bcfks.'
+                    type: string
+                  parallelPodManagement:
+                    description: 'ParallelPodManagement must be true when StatefulSet
+                      uses Parallel podManagementPolicy (PARALLEL_POD_MANAGEMENT_POLICY).
                       Default: false.'
                     type: boolean
-                  hsmMode:
-                    description: 'HSMMode is the Hardware Security Module mode (HSM_MODE).
-                      Default: OFF.'
-                    type: string
-                  javaRamPercentage:
-                    description: 'JavaRAMPercentage is the percentage of container
-                      memory for the JVM (JAVA_RAM_PERCENTAGE). Default: 75.0.'
-                    type: string
-                  jettyThreadsMax:
-                    description: JettyThreadsMax overrides the maximum Jetty thread
-                      pool size (PF_JETTY_THREADS_MAX).
-                    format: int32
-                    type: integer
-                  jettyThreadsMin:
-                    description: JettyThreadsMin overrides the minimum Jetty thread
-                      pool size (PF_JETTY_THREADS_MIN).
-                    format: int32
-                    type: integer
-                  ldapSecretRef:
-                    description: LDAPSecretRef is the name of a Secret containing
-                      PF_LDAP_PASSWORD.
-                    type: string
-                  ldapType:
-                    description: 'LDAPType is the LDAP directory type when using LDAP
-                      auth (PF_LDAP_TYPE). Default: PingDirectory.'
-                    type: string
-                  ldapUsername:
-                    description: LDAPUsername is the username for LDAP lookups (PF_LDAP_USERNAME).
-                    type: string
-                  logNumber:
-                    description: 'LogNumber is the maximum number of log files retained
-                      on rotation (PF_LOG_NUMBER). Default: 2.'
-                    format: int32
-                    type: integer
-                  logSizeMax:
-                    description: 'LogSizeMax is the maximum size for all log file
-                      appenders (PF_LOG_SIZE_MAX). Default: "10000 KB".'
-                    type: string
-                  nodeTags:
-                    description: NodeTags are space-separated tags associated with
-                      this PingFederate node used for request routing (PF_NODE_TAGS).
-                    type: string
-                  operationalMode:
-                    description: 'OperationalMode is one of STANDALONE, CLUSTERED_CONSOLE,
-                      CLUSTERED_ENGINE (OPERATIONAL_MODE). Default: STANDALONE.'
-                    type: string
-                  pingOneEnvID:
-                    description: PingOneEnvID is the PingOne environment ID to connect
-                      to (PF_PINGONE_ENV_ID).
-                    type: string
-                  pingOneRegion:
-                    description: PingOneRegion is the region of the PingOne tenant
-                      (PF_PINGONE_REGION).
-                    type: string
-                  provisionerGracePeriod:
-                    description: |-
-                      ProvisionerGracePeriod is the provisioner failover grace period in seconds (PF_PROVISIONER_GRACE_PERIOD). Default: 600.
-                      Only meaningful when provisionerMode is FAILOVER.
-                    format: int32
-                    type: integer
-                  provisionerMode:
-                    description: 'ProvisionerMode is one of OFF, STANDALONE, FAILOVER
-                      (PF_PROVISIONER_MODE). Default: OFF.'
-                    type: string
-                  provisionerNodeID:
-                    description: 'ProvisionerNodeID is the provisioner node ID (PF_PROVISIONER_NODE_ID).
-                      Default: 1.'
+                  rebuildOnRestart:
+                    description: 'RebuildOnRestart forces replace-profile on every
+                      restart (PD_REBUILD_ON_RESTART). Default: false.'
+                    type: boolean
+                  retryTimeoutSeconds:
+                    description: 'RetryTimeoutSeconds is the timeout for manage-topology
+                      operations (RETRY_TIMEOUT_SECONDS). Default: 180.'
                     format: int32
                     type: integer
                   serverProfile:
-                    description: ServerProfile is the primary server profile for PingFederate.
+                    description: ServerProfile is the primary server profile for PingDataSync.
                     properties:
                       branch:
                         description: Branch is the Git branch to check out. Omit to
@@ -276,9 +127,8 @@ spec:
                         type: string
                     type: object
                   serverProfileLayers:
-                    description: |-
-                      ServerProfileLayers defines additional named profile layers (layered profiles).
-                      Keys are the layer names; env vars use the uppercased key.
+                    description: ServerProfileLayers defines additional named profile
+                      layers.
                     items:
                       description: |-
                         ServerProfileLayerSpec defines a named server profile layer for layered profiles.
@@ -306,6 +156,26 @@ spec:
                       - name
                       type: object
                     type: array
+                  skipWaitForDNS:
+                    description: 'SkipWaitForDNS skips the DNS readiness check on
+                      startup (SKIP_WAIT_FOR_DNS). Default: false.'
+                    type: boolean
+                  truststoreFile:
+                    description: TruststoreFile is the path to the truststore file
+                      (TRUSTSTORE_FILE).
+                    type: string
+                  truststorePinFile:
+                    description: TruststorePinFile is the path to the truststore PIN
+                      file (TRUSTSTORE_PIN_FILE).
+                    type: string
+                  truststoreSecretRef:
+                    description: TruststoreSecretRef is the name of a Secret containing
+                      the truststore file and PIN (TRUSTSTORE_FILE / TRUSTSTORE_PIN_FILE).
+                    type: string
+                  truststoreType:
+                    description: 'TruststoreType is the format of the truststore (TRUSTSTORE_TYPE).
+                      One of: jks, pkcs12, pem, bcfks.'
+                    type: string
                 type: object
               container:
                 description: Container holds container-level settings such as service
@@ -395,10 +265,18 @@ spec:
                       type: object
                     type: array
                 type: object
-              engineIngress:
+              environmentRef:
+                description: EnvironmentRef is the name of the PingEnvironment CR
+                  this product belongs to.
+                type: string
+              image:
+                description: Image is the container image repository. Omit to use
+                  the chart's default.
+                type: string
+              ingress:
                 description: |-
-                  EngineIngress configures the Kubernetes Ingress for the PingFederate runtime engine.
-                  Hostname defaults to pf.<spec.domain> when spec.domain is set.
+                  Ingress configures the Kubernetes Ingress for PingDataSync.
+                  Hostname defaults to pds.<spec.domain> when spec.domain is set.
                 properties:
                   annotations:
                     additionalProperties:
@@ -424,25 +302,15 @@ spec:
                       for this component.
                     type: string
                 type: object
-              environmentRef:
-                description: EnvironmentRef is the name of the PingEnvironment CR
-                  this product belongs to.
-                type: string
-              image:
-                description: |-
-                  Image is the container image repository (e.g. registry.example.com/org/pingfederate).
-                  Omit to use the chart's default image repository.
-                type: string
               replicas:
-                description: 'Replicas is the desired number of PingFederate engine
-                  pods. Default: 1.'
+                description: 'Replicas is the desired number of PingDataSync pods.
+                  Default: 1.'
                 format: int32
                 minimum: 0
                 type: integer
               service:
-                description: |-
-                  Service holds Kubernetes Service customisation for this product.
-                  Annotations are merged on top of spec.services.annotations.
+                description: Service holds Kubernetes Service customisation for this
+                  product.
                 properties:
                   annotations:
                     additionalProperties:
@@ -451,19 +319,25 @@ spec:
                       annotations for this component.
                     type: object
                 type: object
+              storageClass:
+                description: StorageClass is the storage class used for PersistentVolumeClaims.
+                type: string
+              storageSize:
+                description: 'StorageSize is the size of the /opt/out PVC. Default:
+                  8Gi.'
+                type: string
               valuesOverride:
                 description: ValuesOverride is merged on top of the base Helm values
                   as raw JSON.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               version:
-                description: |-
-                  Version is the container image tag (e.g. 13.0.2-edge).
-                  Omit to use the chart's default tag.
+                description: Version is the container image tag. Omit to use the chart's
+                  default tag.
                 type: string
             type: object
           status:
-            description: PingFederateStatus describes the observed state of a PingFederate
+            description: PingDataSyncStatus describes the observed state of a PingDataSync
               resource.
             properties:
               conditions:

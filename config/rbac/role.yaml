@@ -58,7 +58,9 @@ rules:
   - pingaccesses
   - pingauthorizepaps
   - pingauthorizes
+  - pingdatasyncs
   - pingdirectories
+  - pingdirectoryproxies
   - pingenvironments
   - pingfederates
   verbs:
@@ -75,7 +77,9 @@ rules:
   - pingaccesses/finalizers
   - pingauthorizepaps/finalizers
   - pingauthorizes/finalizers
+  - pingdatasyncs/finalizers
   - pingdirectories/finalizers
+  - pingdirectoryproxies/finalizers
   - pingenvironments/finalizers
   - pingfederates/finalizers
   verbs:
@@ -86,7 +90,9 @@ rules:
   - pingaccesses/status
   - pingauthorizepaps/status
   - pingauthorizes/status
+  - pingdatasyncs/status
   - pingdirectories/status
+  - pingdirectoryproxies/status
   - pingenvironments/status
   - pingfederates/status
   verbs:

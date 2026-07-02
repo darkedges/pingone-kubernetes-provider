@@ -290,6 +290,80 @@ func TestMergeValues_AddsNewKeys(t *testing.T) {
 	}
 }
 
+// ---- buildImageValues -------------------------------------------------------
+
+func TestBuildImageValues(t *testing.T) {
+	for _, tc := range []struct {
+		name, repository, version string
+		want                      map[string]any
+	}{
+		{
+			name: "bare tag", version: "13.0.2-edge",
+			want: map[string]any{"tag": "13.0.2-edge"},
+		},
+		{
+			name: "full reference", version: "docker.io/pingidentity/pingfederate:13.0.2-edge",
+			want: map[string]any{"repository": "docker.io/pingidentity", "name": "pingfederate", "tag": "13.0.2-edge"},
+		},
+		{
+			name: "registry with port and tag", version: "registry.example.com:5000/pingfederate:1.2.3",
+			want: map[string]any{"repository": "registry.example.com:5000", "name": "pingfederate", "tag": "1.2.3"},
+		},
+		{
+			// Regression: the port colon must not be mistaken for a tag separator.
+			name: "registry with port, no tag", version: "registry.example.com:5000/pingfederate",
+			want: map[string]any{"repository": "registry.example.com:5000", "name": "pingfederate"},
+		},
+		{
+			name: "explicit repository overrides parsed", repository: "custom.repo",
+			version: "docker.io/pingidentity/pingfederate:1.2.3",
+			want:    map[string]any{"repository": "custom.repo", "name": "pingfederate", "tag": "1.2.3"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildImageValues(tc.repository, tc.version)
+			if len(got) != len(tc.want) {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+			for k, v := range tc.want {
+				if got[k] != v {
+					t.Errorf("%s = %v, want %v", k, got[k], v)
+				}
+			}
+		})
+	}
+}
+
+// ---- deepCopyValues ---------------------------------------------------------
+
+func TestDeepCopyValues_NoAliasing(t *testing.T) {
+	orig := map[string]any{
+		"envs":    map[string]any{"KEY": "one"},
+		"envFrom": []map[string]any{{"secretRef": map[string]any{"name": "s1"}}},
+		"labels":  map[string]string{"app": "pf"},
+		"list":    []any{map[string]any{"k": "v"}},
+	}
+	cp := deepCopyValues(orig)
+
+	cp["envs"].(map[string]any)["KEY"] = "two"
+	cp["envFrom"].([]map[string]any)[0]["secretRef"].(map[string]any)["name"] = "s2"
+	cp["labels"].(map[string]string)["app"] = "pa"
+	cp["list"].([]any)[0].(map[string]any)["k"] = "changed"
+
+	if orig["envs"].(map[string]any)["KEY"] != "one" {
+		t.Error("nested map aliased: mutation through copy changed original")
+	}
+	if orig["envFrom"].([]map[string]any)[0]["secretRef"].(map[string]any)["name"] != "s1" {
+		t.Error("[]map[string]any aliased")
+	}
+	if orig["labels"].(map[string]string)["app"] != "pf" {
+		t.Error("map[string]string aliased")
+	}
+	if orig["list"].([]any)[0].(map[string]any)["k"] != "v" {
+		t.Error("[]any element aliased")
+	}
+}
+
 // ---- SERVER_PROFILE_URL mapping -------------------------------------------
 
 func TestBuildPingValues_PingDirectory_ServerProfileURL(t *testing.T) {

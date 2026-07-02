@@ -2,6 +2,7 @@ package helm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
+	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
@@ -20,9 +22,17 @@ import (
 )
 
 // ReleaseExists reports whether a Helm release with the given name is already installed.
-func ReleaseExists(cfg *action.Configuration, releaseName string) bool {
+// A non-nil error means the release state could not be determined (e.g. a transient
+// API failure) and must not be treated as "release absent".
+func ReleaseExists(cfg *action.Configuration, releaseName string) (bool, error) {
 	_, err := action.NewGet(cfg).Run(releaseName)
-	return err == nil
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, driver.ErrReleaseNotFound) {
+		return false, nil
+	}
+	return false, fmt.Errorf("get release %s: %w", releaseName, err)
 }
 
 // MergeValues deep-merges override (raw JSON from a RawExtension) on top of base.
@@ -42,7 +52,11 @@ func MergeValues(base map[string]any, override runtime.RawExtension) (map[string
 // upgrade controls whether an existing release is upgraded; if false and the release exists,
 // this is a no-op.
 func InstallOrUpgrade(cfg *action.Configuration, releaseName, namespace string, ch *chart.Chart, values map[string]any, upgrade bool) error {
-	if ReleaseExists(cfg, releaseName) {
+	exists, err := ReleaseExists(cfg, releaseName)
+	if err != nil {
+		return err
+	}
+	if exists {
 		if !upgrade {
 			return nil
 		}
@@ -56,7 +70,7 @@ func InstallOrUpgrade(cfg *action.Configuration, releaseName, namespace string, 
 	inst.ReleaseName = releaseName
 	inst.Namespace = namespace
 	inst.CreateNamespace = false
-	_, err := inst.Run(ch, values)
+	_, err = inst.Run(ch, values)
 	return err
 }
 
@@ -114,14 +128,24 @@ func DownloadChart(repoURL, chartName, version, cacheDir string) (string, error)
 		return "", fmt.Errorf("download chart %s: %w", chartURL, err)
 	}
 
-	f, err := os.Create(cached)
+	// Write to a temp file and rename so a crash mid-write can never leave a
+	// truncated archive at the cached path, which os.Stat would accept forever.
+	f, err := os.CreateTemp(cacheDir, filepath.Base(cached)+".tmp-*")
 	if err != nil {
-		return "", fmt.Errorf("create cache file: %w", err)
+		return "", fmt.Errorf("create temp cache file: %w", err)
 	}
-	defer f.Close()
+	tmpName := f.Name()
+	defer os.Remove(tmpName)
 
 	if _, err := io.Copy(f, data); err != nil {
+		f.Close()
 		return "", fmt.Errorf("write cache file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("close cache file: %w", err)
+	}
+	if err := os.Rename(tmpName, cached); err != nil {
+		return "", fmt.Errorf("finalize cache file: %w", err)
 	}
 	return cached, nil
 }
@@ -412,7 +436,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			"ingress": pfAdminIngressValues,
 		}
 
-		// Assemble pingfederate-engine section (runtime engine, user-specified replicas)
+		// Assemble pingfederate-engine section (runtime engine, user-specified replicas).
+		// The shared building blocks are deep-copied so the admin and engine
+		// sections never alias the same maps.
 		pfEngineValues = map[string]any{
 			"enabled": true,
 			"workload": map[string]any{
@@ -421,9 +447,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 					"replicas": products.PingFederate.Replicas,
 				},
 			},
-			"image":     pfImageValues,
-			"container": pfContainerVals,
-			"envs":      pfEnvs,
+			"image":     deepCopyValues(pfImageValues),
+			"container": deepCopyValues(pfContainerVals),
+			"envs":      deepCopyValues(pfEnvs),
 			"services": map[string]any{
 				"https": map[string]any{
 					"containerPort": pfCfg.EnginePort,
@@ -750,6 +776,7 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 			"ingress": paAdminIngressValues,
 		}
 
+		// Deep-copied for the same anti-aliasing reason as the PingFederate engine section.
 		paEngineValues = map[string]any{
 			"enabled": true,
 			"workload": map[string]any{
@@ -758,9 +785,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 					"replicas": products.PingAccess.Replicas,
 				},
 			},
-			"image":     paImageValues,
-			"container": paContainerVals,
-			"envs":      paEnvs,
+			"image":     deepCopyValues(paImageValues),
+			"container": deepCopyValues(paContainerVals),
+			"envs":      deepCopyValues(paEnvs),
 			"services": map[string]any{
 				"https": map[string]any{
 					"containerPort": paCfg.EnginePort,
@@ -1525,7 +1552,9 @@ func buildImageValues(repository, version string) map[string]any {
 	repo, name, tag := repository, "", version
 	if strings.Contains(version, "/") {
 		rest := version
-		if idx := strings.LastIndex(rest, ":"); idx != -1 {
+		// The text after the last ":" is a tag only when it contains no "/";
+		// otherwise the colon belongs to a registry port (e.g. registry.example.com:5000/image).
+		if idx := strings.LastIndex(rest, ":"); idx != -1 && !strings.Contains(rest[idx+1:], "/") {
 			tag = rest[idx+1:]
 			rest = rest[:idx]
 		} else {
@@ -1680,6 +1709,45 @@ func secretEnvFrom(name string) map[string]any {
 // configMapEnvFrom returns a container.envFrom list entry referencing a Kubernetes ConfigMap.
 func configMapEnvFrom(name string) map[string]any {
 	return map[string]any{"configMapRef": map[string]any{"name": name}}
+}
+
+// deepCopyValues returns a recursive copy of a values map. Sections assembled
+// from shared building blocks (envs, container, image) must not alias each
+// other: a later in-place mutation or partial merge through one section would
+// silently change the other.
+func deepCopyValues(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = deepCopyValue(v)
+	}
+	return out
+}
+
+func deepCopyValue(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		return deepCopyValues(t)
+	case map[string]string:
+		out := make(map[string]string, len(t))
+		for k, val := range t {
+			out[k] = val
+		}
+		return out
+	case []map[string]any:
+		out := make([]map[string]any, len(t))
+		for i, e := range t {
+			out[i] = deepCopyValues(e)
+		}
+		return out
+	case []any:
+		out := make([]any, len(t))
+		for i, e := range t {
+			out[i] = deepCopyValue(e)
+		}
+		return out
+	default:
+		return v
+	}
 }
 
 // mergeMaps recursively merges src into dst, returning the result.

@@ -4,6 +4,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"helm.sh/helm/v3/pkg/action"
@@ -33,11 +34,13 @@ const (
 
 // productCRLists holds the CRs found for each product kind in a given environment.
 type productCRLists struct {
-	PingFederate     []pingonev1alpha1.PingFederate
-	PingDirectory    []pingonev1alpha1.PingDirectory
-	PingAccess       []pingonev1alpha1.PingAccess
-	PingAuthorize    []pingonev1alpha1.PingAuthorize
-	PingAuthorizePAP []pingonev1alpha1.PingAuthorizePAP
+	PingFederate       []pingonev1alpha1.PingFederate
+	PingDirectory      []pingonev1alpha1.PingDirectory
+	PingAccess         []pingonev1alpha1.PingAccess
+	PingAuthorize      []pingonev1alpha1.PingAuthorize
+	PingAuthorizePAP   []pingonev1alpha1.PingAuthorizePAP
+	PingDataSync       []pingonev1alpha1.PingDataSync
+	PingDirectoryProxy []pingonev1alpha1.PingDirectoryProxy
 }
 
 // +kubebuilder:rbac:groups=pingone.io,resources=pingenvironments,verbs=get;list;watch;create;update;patch;delete
@@ -72,6 +75,8 @@ func (r *PingEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&pingonev1alpha1.PingAccess{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
 		Watches(&pingonev1alpha1.PingAuthorize{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
 		Watches(&pingonev1alpha1.PingAuthorizePAP{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
+		Watches(&pingonev1alpha1.PingDataSync{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
+		Watches(&pingonev1alpha1.PingDirectoryProxy{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
 		Complete(r)
 }
 
@@ -88,6 +93,10 @@ func enqueueFromEnvironmentRef(_ context.Context, obj client.Object) []reconcile
 	case *pingonev1alpha1.PingAuthorize:
 		ref = o.Spec.EnvironmentRef
 	case *pingonev1alpha1.PingAuthorizePAP:
+		ref = o.Spec.EnvironmentRef
+	case *pingonev1alpha1.PingDataSync:
+		ref = o.Spec.EnvironmentRef
+	case *pingonev1alpha1.PingDirectoryProxy:
 		ref = o.Spec.EnvironmentRef
 	}
 	if ref == "" {
@@ -133,26 +142,40 @@ func (r *PingEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if err := r.deployPingDevops(cfg, env, releaseName, targetNS, products); err != nil {
 		logger.Error(err, "failed to deploy ping-devops")
-		return r.setFailed(ctx, env, lists, "DeployFailed", err.Error())
+		return r.setFailed(ctx, env, releaseName, lists, "DeployFailed", err.Error())
 	}
 
 	return r.setReady(ctx, env, releaseName, lists)
 }
 
 // listProducts queries all product CRs that reference this environment and builds ProductSpecs.
+// Each list is sorted by name before the first item's spec is chosen: cache list
+// order is not guaranteed, so without sorting the winning CR could change between
+// reconciles when several CRs of one kind reference the same environment.
 func (r *PingEnvironmentReconciler) listProducts(ctx context.Context, env *pingonev1alpha1.PingEnvironment) (helmclient.ProductSpecs, productCRLists, error) {
 	var (
-		specs helmclient.ProductSpecs
-		lists productCRLists
+		specs  helmclient.ProductSpecs
+		lists  productCRLists
+		logger = log.FromContext(ctx)
 	)
 	fieldSel := client.MatchingFields{"spec.environmentRef": env.Name}
 	ns := client.InNamespace(env.Namespace)
+
+	// warnDuplicates logs when more than one CR of a kind references this environment.
+	warnDuplicates := func(kind string, n int, winner string) {
+		if n > 1 {
+			logger.Info("multiple product CRs reference this environment; using the first by name",
+				"kind", kind, "count", n, "using", winner)
+		}
+	}
 
 	pfList := &pingonev1alpha1.PingFederateList{}
 	if err := r.List(ctx, pfList, ns, fieldSel); err != nil {
 		return specs, lists, fmt.Errorf("list PingFederates: %w", err)
 	}
 	if len(pfList.Items) > 0 {
+		sort.Slice(pfList.Items, func(i, j int) bool { return pfList.Items[i].Name < pfList.Items[j].Name })
+		warnDuplicates("PingFederate", len(pfList.Items), pfList.Items[0].Name)
 		lists.PingFederate = pfList.Items
 		specs.PingFederate = &pfList.Items[0].Spec
 	}
@@ -162,6 +185,8 @@ func (r *PingEnvironmentReconciler) listProducts(ctx context.Context, env *pingo
 		return specs, lists, fmt.Errorf("list PingDirectories: %w", err)
 	}
 	if len(pdList.Items) > 0 {
+		sort.Slice(pdList.Items, func(i, j int) bool { return pdList.Items[i].Name < pdList.Items[j].Name })
+		warnDuplicates("PingDirectory", len(pdList.Items), pdList.Items[0].Name)
 		lists.PingDirectory = pdList.Items
 		specs.PingDirectory = &pdList.Items[0].Spec
 	}
@@ -171,6 +196,8 @@ func (r *PingEnvironmentReconciler) listProducts(ctx context.Context, env *pingo
 		return specs, lists, fmt.Errorf("list PingAccesses: %w", err)
 	}
 	if len(paList.Items) > 0 {
+		sort.Slice(paList.Items, func(i, j int) bool { return paList.Items[i].Name < paList.Items[j].Name })
+		warnDuplicates("PingAccess", len(paList.Items), paList.Items[0].Name)
 		lists.PingAccess = paList.Items
 		specs.PingAccess = &paList.Items[0].Spec
 	}
@@ -180,6 +207,8 @@ func (r *PingEnvironmentReconciler) listProducts(ctx context.Context, env *pingo
 		return specs, lists, fmt.Errorf("list PingAuthorizes: %w", err)
 	}
 	if len(pazList.Items) > 0 {
+		sort.Slice(pazList.Items, func(i, j int) bool { return pazList.Items[i].Name < pazList.Items[j].Name })
+		warnDuplicates("PingAuthorize", len(pazList.Items), pazList.Items[0].Name)
 		lists.PingAuthorize = pazList.Items
 		specs.PingAuthorize = &pazList.Items[0].Spec
 	}
@@ -189,8 +218,32 @@ func (r *PingEnvironmentReconciler) listProducts(ctx context.Context, env *pingo
 		return specs, lists, fmt.Errorf("list PingAuthorizePAPs: %w", err)
 	}
 	if len(papList.Items) > 0 {
+		sort.Slice(papList.Items, func(i, j int) bool { return papList.Items[i].Name < papList.Items[j].Name })
+		warnDuplicates("PingAuthorizePAP", len(papList.Items), papList.Items[0].Name)
 		lists.PingAuthorizePAP = papList.Items
 		specs.PingAuthorizePAP = &papList.Items[0].Spec
+	}
+
+	pdsList := &pingonev1alpha1.PingDataSyncList{}
+	if err := r.List(ctx, pdsList, ns, fieldSel); err != nil {
+		return specs, lists, fmt.Errorf("list PingDataSyncs: %w", err)
+	}
+	if len(pdsList.Items) > 0 {
+		sort.Slice(pdsList.Items, func(i, j int) bool { return pdsList.Items[i].Name < pdsList.Items[j].Name })
+		warnDuplicates("PingDataSync", len(pdsList.Items), pdsList.Items[0].Name)
+		lists.PingDataSync = pdsList.Items
+		specs.PingDataSync = &pdsList.Items[0].Spec
+	}
+
+	pdpList := &pingonev1alpha1.PingDirectoryProxyList{}
+	if err := r.List(ctx, pdpList, ns, fieldSel); err != nil {
+		return specs, lists, fmt.Errorf("list PingDirectoryProxies: %w", err)
+	}
+	if len(pdpList.Items) > 0 {
+		sort.Slice(pdpList.Items, func(i, j int) bool { return pdpList.Items[i].Name < pdpList.Items[j].Name })
+		warnDuplicates("PingDirectoryProxy", len(pdpList.Items), pdpList.Items[0].Name)
+		lists.PingDirectoryProxy = pdpList.Items
+		specs.PingDirectoryProxy = &pdpList.Items[0].Spec
 	}
 
 	return specs, lists, nil
@@ -207,7 +260,13 @@ func (r *PingEnvironmentReconciler) handleDeletion(ctx context.Context, env *pin
 	}
 
 	releaseName := fmt.Sprintf("%s-ping", env.Spec.TenantID)
-	if helmclient.ReleaseExists(cfg, releaseName) {
+	// A failed existence check returns the error so the reconcile retries;
+	// removing the finalizer on a transient failure would orphan the release.
+	exists, err := helmclient.ReleaseExists(cfg, releaseName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if exists {
 		if _, err := action.NewUninstall(cfg).Run(releaseName); err != nil {
 			return ctrl.Result{}, fmt.Errorf("uninstall %s: %w", releaseName, err)
 		}
@@ -268,7 +327,7 @@ func (r *PingEnvironmentReconciler) setReady(ctx context.Context, env *pingonev1
 	return ctrl.Result{}, nil
 }
 
-func (r *PingEnvironmentReconciler) setFailed(ctx context.Context, env *pingonev1alpha1.PingEnvironment, lists productCRLists, reason, msg string) (ctrl.Result, error) {
+func (r *PingEnvironmentReconciler) setFailed(ctx context.Context, env *pingonev1alpha1.PingEnvironment, releaseName string, lists productCRLists, reason, msg string) (ctrl.Result, error) {
 	patch := client.MergeFrom(env.DeepCopy())
 	env.Status.Phase = "Failed"
 	apimeta.SetStatusCondition(&env.Status.Conditions, metav1.Condition{
@@ -281,44 +340,50 @@ func (r *PingEnvironmentReconciler) setFailed(ctx context.Context, env *pingonev
 	if err := r.Status().Patch(ctx, env, patch); err != nil {
 		return ctrl.Result{}, err
 	}
-	r.updateProductStatuses(ctx, "", "Failed", lists)
+	// The release (if any) is still deployed after a failed upgrade, so the
+	// product statuses keep pointing at it rather than being wiped.
+	r.updateProductStatuses(ctx, releaseName, "Failed", lists)
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 }
 
+// updateProductStatuses mirrors the environment's phase and release name onto every
+// product CR. Patch failures are logged rather than returned: product status is
+// informational, and the next reconcile re-patches it anyway.
 func (r *PingEnvironmentReconciler) updateProductStatuses(ctx context.Context, releaseName, phase string, lists productCRLists) {
+	logger := log.FromContext(ctx)
+	patchStatus := func(obj client.Object, kind string, setStatus func()) {
+		patch := client.MergeFrom(obj.DeepCopyObject().(client.Object))
+		setStatus()
+		if err := r.Status().Patch(ctx, obj, patch); err != nil {
+			logger.Error(err, "failed to patch product status", "kind", kind, "name", obj.GetName())
+		}
+	}
 	for i := range lists.PingFederate {
 		pf := &lists.PingFederate[i]
-		patch := client.MergeFrom(pf.DeepCopy())
-		pf.Status.Phase = phase
-		pf.Status.Release = releaseName
-		_ = r.Status().Patch(ctx, pf, patch)
+		patchStatus(pf, "PingFederate", func() { pf.Status.Phase = phase; pf.Status.Release = releaseName })
 	}
 	for i := range lists.PingDirectory {
 		pd := &lists.PingDirectory[i]
-		patch := client.MergeFrom(pd.DeepCopy())
-		pd.Status.Phase = phase
-		pd.Status.Release = releaseName
-		_ = r.Status().Patch(ctx, pd, patch)
+		patchStatus(pd, "PingDirectory", func() { pd.Status.Phase = phase; pd.Status.Release = releaseName })
 	}
 	for i := range lists.PingAccess {
 		pa := &lists.PingAccess[i]
-		patch := client.MergeFrom(pa.DeepCopy())
-		pa.Status.Phase = phase
-		pa.Status.Release = releaseName
-		_ = r.Status().Patch(ctx, pa, patch)
+		patchStatus(pa, "PingAccess", func() { pa.Status.Phase = phase; pa.Status.Release = releaseName })
 	}
 	for i := range lists.PingAuthorize {
 		paz := &lists.PingAuthorize[i]
-		patch := client.MergeFrom(paz.DeepCopy())
-		paz.Status.Phase = phase
-		paz.Status.Release = releaseName
-		_ = r.Status().Patch(ctx, paz, patch)
+		patchStatus(paz, "PingAuthorize", func() { paz.Status.Phase = phase; paz.Status.Release = releaseName })
 	}
 	for i := range lists.PingAuthorizePAP {
 		pap := &lists.PingAuthorizePAP[i]
-		patch := client.MergeFrom(pap.DeepCopy())
-		pap.Status.Phase = phase
-		pap.Status.Release = releaseName
-		_ = r.Status().Patch(ctx, pap, patch)
+		patchStatus(pap, "PingAuthorizePAP", func() { pap.Status.Phase = phase; pap.Status.Release = releaseName })
+	}
+	for i := range lists.PingDataSync {
+		pds := &lists.PingDataSync[i]
+		patchStatus(pds, "PingDataSync", func() { pds.Status.Phase = phase; pds.Status.Release = releaseName })
+	}
+	for i := range lists.PingDirectoryProxy {
+		pdp := &lists.PingDirectoryProxy[i]
+		patchStatus(pdp, "PingDirectoryProxy", func() { pdp.Status.Phase = phase; pdp.Status.Release = releaseName })
 	}
 }
