@@ -79,3 +79,21 @@ spec:
 #       url: https://github.com/pingidentity/pingidentity-server-profiles.git
 #       path: getting-started/pingdirectory
 #     userBaseDN: "dc=example,dc=com"
+---
+# Uncomment to deploy PingDataSync. The simple-sync server profile expects a
+# PingDirectory deployed with the simple-sync/pingdirectory profile as its
+# sync source/destination — switch the PingDirectory profile path above to
+# simple-sync/pingdirectory when enabling this.
+# apiVersion: pingone.io/v1alpha1
+# kind: PingDataSync
+# metadata:
+#   name: getting-started-pds
+#   namespace: pingone
+# spec:
+#   environmentRef: env-getting-started
+#   # version: "11.0.0.2-edge"  # optional: override image tag
+#   replicas: 1
+#   config:
+#     serverProfile:
+#       url: https://github.com/pingidentity/pingidentity-server-profiles.git
+#       path: simple-sync/pingdatasync

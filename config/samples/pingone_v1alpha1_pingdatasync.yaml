@@ -1,0 +1,39 @@
+# PingDataSync sample.
+#
+# Each spec.config field converts a pingdatasync container environment variable
+# (https://developer.pingidentity.com/devops/docker-images/pingdatasync/README.html)
+# into a typed field on this Kind:
+#
+#   config.serverProfile.url      -> SERVER_PROFILE_URL
+#   config.serverProfile.path     -> SERVER_PROFILE_PATH
+#   config.adminUserName          -> ADMIN_USER_NAME
+#   config.retryTimeoutSeconds    -> RETRY_TIMEOUT_SECONDS
+#   config.rebuildOnRestart       -> PD_REBUILD_ON_RESTART
+#   config.parallelPodManagement  -> PARALLEL_POD_MANAGEMENT_POLICY
+#   config.skipWaitForDNS         -> SKIP_WAIT_FOR_DNS
+#   config.certificateNickname    -> CERTIFICATE_NICKNAME
+#   config.keystoreType           -> KEYSTORE_TYPE
+#   config.truststoreType         -> TRUSTSTORE_TYPE
+#   config.adminSecretRef         -> Secret injected via envFrom (ROOT_USER_PASSWORD_FILE / ADMIN_USER_PASSWORD_FILE)
+#   config.envs                   -> any additional env vars, passed through verbatim
+apiVersion: pingone.io/v1alpha1
+kind: PingDataSync
+metadata:
+  name: dev-pds
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  # image: registry.example.com/org/pingdatasync  # optional: override image repository
+  # version: "11.0.0.2-edge"                      # optional: override image tag
+  replicas: 1
+  storageSize: 8Gi
+  config:
+    serverProfile:
+      url: https://github.com/pingidentity/pingidentity-server-profiles.git
+      path: simple-sync/pingdatasync
+    adminUserName: admin
+    retryTimeoutSeconds: 180
+    # adminSecretRef: pds-admin-credentials  # Secret with ROOT_USER_PASSWORD_FILE / ADMIN_USER_PASSWORD_FILE
+    # Additional env vars not covered by typed fields:
+    envs:
+      MAX_HEAP_SIZE: 384m
