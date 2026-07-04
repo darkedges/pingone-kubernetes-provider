@@ -80,6 +80,7 @@ func main() {
 		{"PingAuthorizePAP", func() controllers.ProductObject { return &pingonev1alpha1.PingAuthorizePAP{} }},
 		{"PingDataSync", func() controllers.ProductObject { return &pingonev1alpha1.PingDataSync{} }},
 		{"PingDirectoryProxy", func() controllers.ProductObject { return &pingonev1alpha1.PingDirectoryProxy{} }},
+		{"PingDataConsole", func() controllers.ProductObject { return &pingonev1alpha1.PingDataConsole{} }},
 	}
 
 	// Register field indexes so product CRs can be listed by environmentRef.

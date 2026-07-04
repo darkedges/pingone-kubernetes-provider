@@ -58,6 +58,7 @@ rules:
   - pingaccesses
   - pingauthorizepaps
   - pingauthorizes
+  - pingdataconsoles
   - pingdatasyncs
   - pingdirectories
   - pingdirectoryproxies
@@ -77,6 +78,7 @@ rules:
   - pingaccesses/finalizers
   - pingauthorizepaps/finalizers
   - pingauthorizes/finalizers
+  - pingdataconsoles/finalizers
   - pingdatasyncs/finalizers
   - pingdirectories/finalizers
   - pingdirectoryproxies/finalizers
@@ -90,6 +92,7 @@ rules:
   - pingaccesses/status
   - pingauthorizepaps/status
   - pingauthorizes/status
+  - pingdataconsoles/status
   - pingdatasyncs/status
   - pingdirectories/status
   - pingdirectoryproxies/status

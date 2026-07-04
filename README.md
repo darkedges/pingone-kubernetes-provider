@@ -1,14 +1,14 @@
 # pingone-kubernetes-provider
 
-A Kubernetes operator that manages Ping Identity product deployments via a single `PingEnvironment` custom resource. The operator reconciles each CR into a Helm release of the [`ping-devops`](https://helm.pingidentity.com) chart (version `0.12.2`).
+A Kubernetes operator that manages Ping Identity product deployments via a `PingEnvironment` custom resource plus one product CR per deployed product. The operator reconciles each environment and its product CRs into a single Helm release of the [`ping-devops`](https://helm.pingidentity.com) chart (version `0.12.2`).
 
 ---
 
 ## Overview
 
-- Apply a `PingEnvironment` manifest — the operator does the rest.
-- PingFederate is always deployed as separate admin and engine workloads.
-- PingDirectory, PingDataConsole, PingAccess, PingAuthorize, and PingAuthorizePAP are optional; omit their sections to skip them.
+- Apply a `PingEnvironment` manifest for the shared settings, then one product CR per product — the operator aggregates them into one Helm release.
+- Every product is optional: PingFederate, PingDirectory, PingDataConsole, PingAccess, PingAuthorize, PingAuthorizePAP, PingDataSync, and PingDirectoryProxy each have their own CR kind (see `config/samples/`).
+- PingFederate and PingAccess deploy as separate admin and engine workloads.
 - Resource sizing (CPU/memory) is driven by a single `tier` field: `development`, `staging`, or `production`.
 - A shared `spec.ingress` block provides ingress class, annotations, and a global `enabled` flag to all components; per-component blocks only need `enabled` and a TLS secret reference.
 - Hostnames are derived from `spec.domain` automatically or overridden per component.
@@ -122,7 +122,9 @@ kubectl get pods -n <target-namespace>
 
 ---
 
-## PingEnvironment manifest
+## Manifests
+
+A `PingEnvironment` defines the shared settings; each product is deployed by its own CR referencing the environment via `spec.environmentRef`:
 
 ```yaml
 apiVersion: pingone.io/v1alpha1
@@ -135,7 +137,7 @@ spec:
   tier: development             # development | staging | production
   domain: dev.myorg.example.com # base domain; component hostnames derived automatically
 
-  # Shared ingress — inherited by all components unless overridden per component
+  # Shared ingress — inherited by all product ingress blocks unless overridden
   ingress:
     enabled: true               # globally enable ingress for all components
     className: nginx
@@ -143,80 +145,43 @@ spec:
       nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       cert-manager.io/cluster-issuer: "letsencrypt-prod"
-
-  pingFederate:
-    version: "13.0.2-edge"
-    engineIngress:
-      enabled: true
-      tlsSecretRef: pf-tls      # hostname: pf.dev.myorg.example.com
-    adminIngress:
-      enabled: true
-      tlsSecretRef: pf-admin-tls  # hostname: pf-admin.dev.myorg.example.com
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        branch: main
-        path: pingfederate
-
-  pingDirectory:                # optional — omit to skip PingDirectory
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        branch: main
-        path: pingdirectory
-      userBaseDN: "dc=myorg,dc=com"
-
-  pingDataConsole:              # optional — only deployed when this section is present
-    ingress:
-      enabled: true
-      tlsSecretRef: pd-console-tls  # hostname: pd-console.dev.myorg.example.com
-
-  pingAccess:                   # optional — omit to skip PingAccess
-    adminIngress:
-      enabled: true
-      tlsSecretRef: pa-admin-tls  # hostname: pa-admin.dev.myorg.example.com
-    engineIngress:
-      enabled: true
-      tlsSecretRef: pa-tls        # hostname: pa.dev.myorg.example.com
-    container:
-      waitFor:
-        - application: pingFederate
-          service: https
-          timeoutSeconds: 300
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        path: pingaccess
-
-  pingAuthorize:                # optional — omit to skip PingAuthorize
-    ingress:
-      enabled: true
-      tlsSecretRef: paz-tls     # hostname: paz.dev.myorg.example.com
-    container:
-      waitFor:
-        - application: pingDirectory
-          service: ldaps
-          timeoutSeconds: 300
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        path: paz-pap-integration/pingauthorize
-      serverProfileLayers:
-        - name: baseline
-          url: https://github.com/myorg/ping-profiles.git
-          path: baseline/pingauthorize
-
-  pingAuthorizePAP:             # optional — omit to skip PingAuthorizePAP
-    ingress:
-      enabled: true
-      tlsSecretRef: paz-pap-tls  # hostname: paz-pap.dev.myorg.example.com
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        path: paz-pap-integration/pingauthorizepap
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingFederate
+metadata:
+  name: myorg-dev-pf
+  namespace: pingone
+spec:
+  environmentRef: myorg-dev
+  version: "13.0.2-edge"
+  engineIngress:
+    enabled: true
+    tlsSecretRef: pf-tls        # hostname: pf.dev.myorg.example.com
+  adminIngress:
+    enabled: true
+    tlsSecretRef: pf-admin-tls  # hostname: pf-admin.dev.myorg.example.com
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      branch: main
+      path: pingfederate
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingDirectory
+metadata:
+  name: myorg-dev-pd
+  namespace: pingone
+spec:
+  environmentRef: myorg-dev
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      branch: main
+      path: pingdirectory
+    userBaseDN: "dc=myorg,dc=com"
 ```
 
-See [CONFIGURATION.md](CONFIGURATION.md) for the full field reference.
+The same pattern applies to `PingAccess`, `PingAuthorize`, `PingAuthorizePAP`, `PingDataSync`, `PingDirectoryProxy`, and `PingDataConsole` — see `config/samples/` for a starter manifest per kind and [CONFIGURATION.md](CONFIGURATION.md) for the full field reference. Deleting a product CR removes that product from the Helm release.
 
 ---
 
@@ -247,6 +212,8 @@ When `spec.domain` is set, hostnames are derived automatically:
 | PingAccess engine | `pa.<domain>` |
 | PingAuthorize | `paz.<domain>` |
 | PingAuthorizePAP | `paz-pap.<domain>` |
+| PingDataSync | `pds.<domain>` |
+| PingDirectoryProxy | `pdp.<domain>` |
 
 Override any hostname by setting `hostname` inside the component's ingress block.
 
@@ -254,11 +221,11 @@ Override any hostname by setting `hostname` inside the component's ingress block
 
 ## Tier resource sizing
 
-| Tier | PingFederate CPU/Mem | PingDirectory CPU/Mem | PingAccess CPU/Mem | PingAuthorize CPU/Mem |
-|---|---|---|---|---|
-| `development` | 500m / 512Mi | 500m / 1Gi | 500m / 512Mi | 500m / 1Gi |
-| `staging` | 1 / 1Gi | 1 / 2Gi | 1 / 1Gi | 1 / 2Gi |
-| `production` | 2 / 2Gi | 2 / 4Gi | 2 / 2Gi | 2 / 4Gi |
+| Tier | PingFederate / PingAccess CPU/Mem | PingDirectory / PingAuthorize / PingDataSync / PingDirectoryProxy CPU/Mem |
+|---|---|---|
+| `development` | 500m / 512Mi | 500m / 1Gi |
+| `staging` | 1 / 1Gi | 1 / 2Gi |
+| `production` | 2 / 2Gi | 2 / 4Gi |
 
 PingDataConsole and PingAuthorizePAP are lightweight UI/API components — no tier-based resource sizing is applied.
 
@@ -315,6 +282,8 @@ The `application` field accepts logical names (case-insensitive):
 | `pingAuthorize` | `pingauthorize` |
 | `pingAuthorizePAP` | `pingauthorizepap` |
 | `pingDataConsole` | `pingdataconsole` |
+| `pingDataSync` | `pingdatasync` |
+| `pingDirectoryProxy` | `pingdirectoryproxy` |
 
 ---
 

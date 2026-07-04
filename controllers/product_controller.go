@@ -13,18 +13,18 @@ import (
 )
 
 // ProductObject is implemented by every product CR (PingFederate, PingDirectory,
-// PingAccess, PingAuthorize, PingAuthorizePAP, PingDataSync, PingDirectoryProxy).
-// It gives the shared reconciler and the environmentRef index/enqueue plumbing a
-// uniform view of the per-product types.
+// PingAccess, PingAuthorize, PingAuthorizePAP, PingDataSync, PingDirectoryProxy,
+// PingDataConsole). It gives the shared reconciler and the environmentRef
+// index/enqueue plumbing a uniform view of the per-product types.
 type ProductObject interface {
 	client.Object
 	GetEnvironmentRef() string
 	SetPhase(phase string)
 }
 
-// +kubebuilder:rbac:groups=pingone.io,resources=pingfederates;pingdirectories;pingaccesses;pingauthorizes;pingauthorizepaps;pingdatasyncs;pingdirectoryproxies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=pingone.io,resources=pingfederates/status;pingdirectories/status;pingaccesses/status;pingauthorizes/status;pingauthorizepaps/status;pingdatasyncs/status;pingdirectoryproxies/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=pingone.io,resources=pingfederates/finalizers;pingdirectories/finalizers;pingaccesses/finalizers;pingauthorizes/finalizers;pingauthorizepaps/finalizers;pingdatasyncs/finalizers;pingdirectoryproxies/finalizers,verbs=update
+// +kubebuilder:rbac:groups=pingone.io,resources=pingfederates;pingdirectories;pingaccesses;pingauthorizes;pingauthorizepaps;pingdatasyncs;pingdirectoryproxies;pingdataconsoles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=pingone.io,resources=pingfederates/status;pingdirectories/status;pingaccesses/status;pingauthorizes/status;pingauthorizepaps/status;pingdatasyncs/status;pingdirectoryproxies/status;pingdataconsoles/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=pingone.io,resources=pingfederates/finalizers;pingdirectories/finalizers;pingaccesses/finalizers;pingauthorizes/finalizers;pingauthorizepaps/finalizers;pingdatasyncs/finalizers;pingdirectoryproxies/finalizers;pingdataconsoles/finalizers,verbs=update
 
 // ProductReconciler reconciles any product CR. The heavy lifting (rendering the
 // product into the Helm release) happens in the PingEnvironment reconciler; this

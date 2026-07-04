@@ -416,6 +416,163 @@ func TestBuildPingValues_PingDirectory_ServerProfileURL(t *testing.T) {
 	}
 }
 
+// ---- PingDataConsole -------------------------------------------------------
+
+// section is a helper to extract a sub-chart section from built values.
+func section(t *testing.T, vals map[string]any, key string) map[string]any {
+	t.Helper()
+	s, ok := vals[key].(map[string]any)
+	if !ok {
+		t.Fatalf("%s key missing or wrong type", key)
+	}
+	return s
+}
+
+func TestBuildPingValues_PingDataConsole_CR(t *testing.T) {
+	env := pingonev1alpha1.PingEnvironmentSpec{TenantID: "test", Tier: "development"}
+	products := ProductSpecs{
+		PingDirectory: &pingonev1alpha1.PingDirectorySpec{},
+		PingDataConsole: &pingonev1alpha1.PingDataConsoleSpec{
+			Config: pingonev1alpha1.PingDataConsoleConfig{
+				HTTPPort:        8081,
+				HTTPSPort:       8444,
+				BrandingAppName: "My Console",
+				SystemReadOnly:  true,
+				Envs:            map[string]string{"EXTRA_VAR": "extra"},
+			},
+		},
+	}
+
+	vals, err := BuildPingValues(env, products)
+	if err != nil {
+		t.Fatalf("BuildPingValues error: %v", err)
+	}
+	pdc := section(t, vals, "pingdataconsole")
+	if pdc["enabled"] != true {
+		t.Fatal("pingdataconsole.enabled should be true")
+	}
+
+	envs := section(t, pdc, "envs")
+	for _, tc := range []struct{ key, want string }{
+		{"HTTP_PORT", "8081"},
+		{"HTTPS_PORT", "8444"},
+		{"BRANDING_APP_NAME", "My Console"},
+		{"SYSTEM_READ_ONLY", "true"},
+		{"EXTRA_VAR", "extra"},
+	} {
+		if got := envs[tc.key]; got != tc.want {
+			t.Errorf("envs[%q] = %v, want %q", tc.key, got, tc.want)
+		}
+	}
+
+	// defaultLogin defaults to the environment's PingDirectory cluster service
+	// and its LDAPS port (defaulted to 1636 by applyDefaults).
+	server := section(t, section(t, pdc, "defaultLogin"), "server")
+	if got := server["host"]; got != "test-ping-pingdirectory-cluster" {
+		t.Errorf("defaultLogin.server.host = %v, want test-ping-pingdirectory-cluster", got)
+	}
+	if got := server["port"]; got != int32(1636) {
+		t.Errorf("defaultLogin.server.port = %v, want 1636", got)
+	}
+
+	// Replicas default to 1 via applyDefaults and render a Deployment workload.
+	workload := section(t, pdc, "workload")
+	if got := workload["type"]; got != "Deployment" {
+		t.Errorf("workload.type = %v, want Deployment", got)
+	}
+	deployment := section(t, workload, "deployment")
+	if got := deployment["replicas"]; got != int32(1) {
+		t.Errorf("workload.deployment.replicas = %v, want 1", got)
+	}
+}
+
+func TestBuildPingValues_PingDataConsole_ServerOverrides(t *testing.T) {
+	env := pingonev1alpha1.PingEnvironmentSpec{TenantID: "test", Tier: "development"}
+	products := ProductSpecs{
+		PingDataConsole: &pingonev1alpha1.PingDataConsoleSpec{
+			Config: pingonev1alpha1.PingDataConsoleConfig{
+				ServerHost: "pd.example.svc",
+				ServerPort: 2636,
+			},
+		},
+	}
+
+	vals, err := BuildPingValues(env, products)
+	if err != nil {
+		t.Fatalf("BuildPingValues error: %v", err)
+	}
+	server := section(t, section(t, section(t, vals, "pingdataconsole"), "defaultLogin"), "server")
+	if got := server["host"]; got != "pd.example.svc" {
+		t.Errorf("defaultLogin.server.host = %v, want pd.example.svc", got)
+	}
+	if got := server["port"]; got != int32(2636) {
+		t.Errorf("defaultLogin.server.port = %v, want 2636", got)
+	}
+}
+
+func TestBuildPingValues_PingDataConsole_CRTakesPrecedenceOverInline(t *testing.T) {
+	env := pingonev1alpha1.PingEnvironmentSpec{
+		TenantID: "test",
+		Tier:     "development",
+		PingDataConsole: &pingonev1alpha1.PingDataConsoleInlineSpec{
+			BrandingAppName: "Inline Console",
+		},
+	}
+	products := ProductSpecs{
+		PingDirectory: &pingonev1alpha1.PingDirectorySpec{},
+		PingDataConsole: &pingonev1alpha1.PingDataConsoleSpec{
+			Config: pingonev1alpha1.PingDataConsoleConfig{BrandingAppName: "CR Console"},
+		},
+	}
+
+	vals, err := BuildPingValues(env, products)
+	if err != nil {
+		t.Fatalf("BuildPingValues error: %v", err)
+	}
+	envs := section(t, section(t, vals, "pingdataconsole"), "envs")
+	if got := envs["BRANDING_APP_NAME"]; got != "CR Console" {
+		t.Errorf("BRANDING_APP_NAME = %v, want CR Console (CR must win over inline spec)", got)
+	}
+}
+
+func TestBuildPingValues_PingDataConsole_InlineFallback(t *testing.T) {
+	env := pingonev1alpha1.PingEnvironmentSpec{
+		TenantID: "test",
+		Tier:     "development",
+		PingDataConsole: &pingonev1alpha1.PingDataConsoleInlineSpec{
+			BrandingAppName: "Inline Console",
+		},
+	}
+	products := ProductSpecs{PingDirectory: &pingonev1alpha1.PingDirectorySpec{}}
+
+	vals, err := BuildPingValues(env, products)
+	if err != nil {
+		t.Fatalf("BuildPingValues error: %v", err)
+	}
+	pdc := section(t, vals, "pingdataconsole")
+	if pdc["enabled"] != true {
+		t.Fatal("pingdataconsole.enabled should be true via inline fallback")
+	}
+	envs := section(t, pdc, "envs")
+	if got := envs["BRANDING_APP_NAME"]; got != "Inline Console" {
+		t.Errorf("BRANDING_APP_NAME = %v, want Inline Console", got)
+	}
+}
+
+func TestBuildPingValues_PingDataConsole_DisabledWhenAbsent(t *testing.T) {
+	env := pingonev1alpha1.PingEnvironmentSpec{TenantID: "test", Tier: "development"}
+	products := ProductSpecs{PingDirectory: &pingonev1alpha1.PingDirectorySpec{}}
+
+	vals, err := BuildPingValues(env, products)
+	if err != nil {
+		t.Fatalf("BuildPingValues error: %v", err)
+	}
+	pdc := section(t, vals, "pingdataconsole")
+	if pdc["enabled"] != false {
+		t.Errorf("pingdataconsole.enabled = %v, want false when no CR or inline spec", pdc["enabled"])
+	}
+}
+
 // ---- releaseUnchanged / jsonEqual ------------------------------------------
 
 func TestJSONEqual(t *testing.T) {

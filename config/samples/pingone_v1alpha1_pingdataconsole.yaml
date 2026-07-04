@@ -1,0 +1,33 @@
+# PingDataConsole sample.
+#
+# Each spec.config field converts a pingdataconsole container environment variable
+# (https://developer.pingidentity.com/devops/docker-images/pingdataconsole/README.html)
+# into a typed field on this Kind:
+#
+#   config.httpPort         -> HTTP_PORT (default 8080)
+#   config.httpsPort        -> HTTPS_PORT (default 8443)
+#   config.brandingAppName  -> BRANDING_APP_NAME (default "PingDirectory Admin Console")
+#   config.systemReadOnly   -> SYSTEM_READ_ONLY (default false)
+#   config.envs             -> any additional env vars, passed through verbatim
+#
+# config.serverHost / config.serverPort pre-fill the sign-on page
+# (defaultLogin.server); they default to the environment's PingDirectory
+# cluster service and its LDAPS port.
+apiVersion: pingone.io/v1alpha1
+kind: PingDataConsole
+metadata:
+  name: dev-pd-console
+  namespace: ping-environments
+spec:
+  environmentRef: env-dev
+  # image: registry.example.com/org/pingdataconsole  # optional: override image repository
+  # version: "11.0.0.2-edge"                         # optional: override image tag
+  replicas: 1
+  ingress:
+    enabled: true
+    # hostname auto-derived: pd-console.<spec.domain>
+  config:
+    brandingAppName: "Example Directory Console"
+    # systemReadOnly: true
+    # serverHost: my-pingdirectory.example.svc
+    # serverPort: 1636

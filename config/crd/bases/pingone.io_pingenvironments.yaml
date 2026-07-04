@@ -104,7 +104,9 @@ spec:
                 type: object
               pingDataConsole:
                 description: |-
-                  PingDataConsole configures the PingDataConsole web UI.
+                  PingDataConsole configures the PingDataConsole web UI inline.
+                  Deprecated: create a PingDataConsole product CR instead; a PingDataConsole
+                  CR referencing this environment takes precedence over this section.
                   Only deployed when this section is explicitly present and a PingDirectory CR references this environment.
                 properties:
                   brandingAppName:

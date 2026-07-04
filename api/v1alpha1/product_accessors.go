@@ -23,3 +23,6 @@ func (p *PingDataSync) SetPhase(phase string)     { p.Status.Phase = phase }
 
 func (p *PingDirectoryProxy) GetEnvironmentRef() string { return p.Spec.EnvironmentRef }
 func (p *PingDirectoryProxy) SetPhase(phase string)     { p.Status.Phase = phase }
+
+func (p *PingDataConsole) GetEnvironmentRef() string { return p.Spec.EnvironmentRef }
+func (p *PingDataConsole) SetPhase(phase string)     { p.Status.Phase = phase }

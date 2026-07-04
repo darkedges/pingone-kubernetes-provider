@@ -1,16 +1,18 @@
 # PingOne Operator — Configuration Guide
 
-The operator manages Ping Identity products in Kubernetes via a single `PingEnvironment` custom resource. Each CR maps to one Helm release of the `ping-devops` chart (version `0.12.2` from `https://helm.pingidentity.com`).
+The operator manages Ping Identity products in Kubernetes via a `PingEnvironment` custom resource plus one product CR per deployed product (`PingFederate`, `PingDirectory`, `PingAccess`, `PingAuthorize`, `PingAuthorizePAP`, `PingDataSync`, `PingDirectoryProxy`, `PingDataConsole`). Each environment maps to one Helm release of the `ping-devops` chart (version `0.12.2` from `https://helm.pingidentity.com`).
 
 ---
 
 ## How it works
 
-1. You apply a `PingEnvironment` manifest to the cluster.
-2. The operator reconciles it by building a `ping-devops` Helm values map from the spec.
-3. A single Helm release named `<tenantId>-ping` is installed or upgraded in the target namespace.
-4. PingFederate is always deployed. All other products are optional — omit their sections to skip them.
-5. All Ping Identity container env vars are driven from the CRD fields; use `valuesOverride` as an escape hatch for anything not exposed by the CRD.
+1. You apply a `PingEnvironment` manifest defining the shared settings: tenant ID, tier, domain, global ingress, and global env vars.
+2. You apply one product CR for each product you want deployed. Each product CR points at its environment via `spec.environmentRef`.
+3. The operator aggregates the environment and all product CRs that reference it into a single `ping-devops` Helm values map.
+4. A single Helm release named `<tenantId>-ping` is installed or upgraded in the target namespace. Deleting a product CR removes that product from the release on the next reconcile.
+5. All Ping Identity container env vars are driven from CRD fields; use `valuesOverride` on any product CR as an escape hatch for anything not exposed by the CRD.
+
+Every product is optional — deploy only the CRs you need. When several CRs of the same kind reference one environment, the first by name wins and a warning is logged.
 
 ### Prerequisites
 
@@ -33,22 +35,32 @@ The operator injects this secret into every product container via `global.envFro
 
 ---
 
-## Global fields
+## PingEnvironment
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `spec.tenantId` | string | Yes | Unique identifier for this environment. Used as the Helm release name prefix (`<tenantId>-ping`). |
-| `spec.tier` | string | Yes | One of `development`, `staging`, `production`. Controls CPU/memory resource requests for PingFederate, PingDirectory, PingAccess, and PingAuthorize. |
+| `spec.tenantId` | string | Yes | Unique identifier for this environment. Used as the Helm release name prefix (`<tenantId>-ping`). Must be a DNS-1123 label fragment (max 30 chars). |
+| `spec.tier` | string | Yes | One of `development`, `staging`, `production`. Controls CPU/memory resource requests per product. |
 | `spec.domain` | string | No | Base domain for automatic hostname derivation (e.g. `dev.myorg.example.com`). See [Hostname derivation](#hostname-derivation). |
 | `spec.targetNamespace` | string | No | Namespace to deploy the Helm release into. Defaults to the CR's own namespace. |
+| `spec.ingress` | object | No | Shared ingress settings inherited by all product ingress blocks. See [spec.ingress](#specingress-global). |
+| `spec.services` | object | No | Shared Kubernetes Service settings (`annotations`) inherited by all products. Per-product `service.annotations` win on conflict. |
+| `spec.envs` | map | No | Env vars injected into every product container (`global.envs`). |
+| `spec.vault` | object | No | HashiCorp Vault Agent injection settings for all products (`global.vault`). Raw chart values. |
+| `spec.securityContext` | object | No | Pod-level securityContext for all product workloads. Per-product `container.securityContext` overrides. |
+| `spec.containerSecurityContext` | object | No | Container-level securityContext for all product workloads. Per-product `container.containerSecurityContext` overrides. |
+| `spec.resources` | object | No | Default CPU/memory requests/limits for all product containers. Per-product `container.resources` overrides. |
+| `spec.volumes` | map | No | Named pod-level volumes available to all products. Products opt in via `container.includeVolumes`. |
+| `spec.includeVolumes` | list | No | Volume names (from `spec.volumes`) mounted into every product workload (`global.includeVolumes`). |
+| `spec.pingDataConsole` | object | No | **Deprecated** — inline PingDataConsole settings. Create a [PingDataConsole](#pingdataconsole) CR instead; a CR referencing this environment takes precedence. |
 
 ### Resource sizing by tier
 
-| Tier | PingFederate CPU/Mem | PingDirectory CPU/Mem | PingAccess CPU/Mem | PingAuthorize CPU/Mem |
-|---|---|---|---|---|
-| `development` | 500m / 512Mi | 500m / 1Gi | 500m / 512Mi | 500m / 1Gi |
-| `staging` | 1 / 1Gi | 1 / 2Gi | 1 / 1Gi | 1 / 2Gi |
-| `production` | 2 / 2Gi | 2 / 4Gi | 2 / 2Gi | 2 / 4Gi |
+| Tier | PingFederate / PingAccess CPU/Mem | PingDirectory / PingAuthorize / PingDataSync / PingDirectoryProxy CPU/Mem |
+|---|---|---|
+| `development` | 500m / 512Mi | 500m / 1Gi |
+| `staging` | 1 / 1Gi | 1 / 2Gi |
+| `production` | 2 / 2Gi | 2 / 4Gi |
 
 PingDataConsole and PingAuthorizePAP are lightweight UI/API components and do not receive tier-based resource sizing.
 
@@ -56,7 +68,7 @@ PingDataConsole and PingAuthorizePAP are lightweight UI/API components and do no
 
 ## spec.ingress (global)
 
-The global ingress block provides defaults inherited by all product ingress blocks. Per-component blocks take precedence when set.
+The global ingress block on PingEnvironment provides defaults inherited by all product ingress blocks. Per-component blocks take precedence when set.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -80,7 +92,7 @@ ingress:
 
 ## Hostname derivation
 
-When `spec.domain` is set, hostnames for each product are derived as `<prefix>.<domain>`:
+When `spec.domain` is set on the environment, hostnames for each product are derived as `<prefix>.<domain>`:
 
 | Component | Prefix | Example (`domain: dev.example.com`) |
 |---|---|---|
@@ -91,6 +103,8 @@ When `spec.domain` is set, hostnames for each product are derived as `<prefix>.<
 | PingAccess engine | `pa` | `pa.dev.example.com` |
 | PingAuthorize | `paz` | `paz.dev.example.com` |
 | PingAuthorizePAP | `paz-pap` | `paz-pap.dev.example.com` |
+| PingDataSync | `pds` | `pds.dev.example.com` |
+| PingDirectoryProxy | `pdp` | `pdp.dev.example.com` |
 
 Override any hostname by setting `hostname` inside the component's ingress block.
 
@@ -150,9 +164,23 @@ See [Ping Identity layered profiles](https://developer.pingidentity.com/devops/h
 
 ---
 
-## Container wait-for
+## Container settings
 
-All products support a `container.waitFor` list that controls startup ordering. Each entry causes the container to probe a dependency before starting.
+All products accept a `spec.container` block:
+
+| Field | Type | Description |
+|---|---|---|
+| `waitFor` | list | Startup dependency probes. See below. |
+| `resources` | object | CPU/memory requests/limits. Overrides tier defaults and `PingEnvironment.spec.resources`. |
+| `securityContext` | object | Pod-level securityContext override for this product. |
+| `containerSecurityContext` | object | Container-level securityContext override for this product. |
+| `includeVolumes` | list | Volume names from `PingEnvironment.spec.volumes` to mount into this product's pod. |
+| `volumes` | list | Additional pod-level volumes (standard Kubernetes volume specs). |
+| `volumeMounts` | list | Additional container volumeMounts (standard Kubernetes volumeMount specs). |
+
+### Container wait-for
+
+Each `waitFor` entry causes the container to probe a dependency before starting:
 
 ```yaml
 container:
@@ -180,39 +208,56 @@ container:
 | `pingAuthorize` | `pingauthorize` |
 | `pingAuthorizePAP` | `pingauthorizepap` |
 | `pingDataConsole` | `pingdataconsole` |
+| `pingDataSync` | `pingdatasync` |
+| `pingDirectoryProxy` | `pingdirectoryproxy` |
 
 ---
 
-## spec.pingFederate
+## PingFederate
 
-PingFederate is **required**. It is deployed as two Deployment workloads: an admin console (`pingfederate-admin`) and one or more runtime engines (`pingfederate-engine`).
+Deployed by creating a `PingFederate` CR. It renders as two Deployment workloads: an admin console (`pingfederate-admin`) and one or more runtime engines (`pingfederate-engine`).
+
+```yaml
+apiVersion: pingone.io/v1alpha1
+kind: PingFederate
+metadata:
+  name: dev-pf
+spec:
+  environmentRef: env-dev
+  replicas: 1
+  engineIngress:
+    enabled: true
+  adminIngress:
+    enabled: true
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      path: pingfederate
+```
 
 ### Basic fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
 | `image` | string | — | Image repository override (e.g. `registry.example.com/org`). |
-| `version` | string | — | Image tag or full reference (e.g. `13.0.2-edge` or `docker.io/pingidentity/pingfederate:13.0.2-edge`). |
+| `version` | string | — | Image tag or full reference (e.g. `13.0.2-edge`). |
 | `replicas` | int | `1` | Number of engine pods. The admin always runs as a single pod. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
 | `valuesOverride` | object | — | Raw JSON deep-merged last on top of all computed Helm values. |
 
-### spec.pingFederate.engineIngress / adminIngress
+### spec.engineIngress / adminIngress
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | bool | inherited from `spec.ingress.enabled` | Whether to create an Ingress resource. |
+| `enabled` | bool | inherited from environment `spec.ingress.enabled` | Whether to create an Ingress resource. |
 | `className` | string | inherited | `ingressClassName`. |
 | `hostname` | string | `pf.<domain>` / `pf-admin.<domain>` | FQDN for this component. |
 | `tlsSecretRef` | string | `<tenantId>-pf-tls` / `<tenantId>-pf-admin-tls` | TLS Secret name. Auto-generated when not set. |
 | `annotations` | map | merged from global | Additional Ingress annotations. |
 
-### spec.pingFederate.container
-
-| Field | Type | Description |
-|---|---|---|
-| `waitFor` | list | Startup dependency probes. See [Container wait-for](#container-wait-for). |
-
-### spec.pingFederate.config
+### spec.config
 
 All fields are optional. Unset fields use the Ping Identity defaults listed below.
 
@@ -282,41 +327,55 @@ All fields are optional. Unset fields use the Ping Identity defaults listed belo
 | `javaRamPercentage` | `JAVA_RAM_PERCENTAGE` | `75.0` | Percentage of container memory allocated to the JVM. |
 | `hsmMode` | `HSM_MODE` | `OFF` | Hardware Security Module mode. One of: `OFF`, `AWSCLOUDHSM`, `NCIPHER`, `LUNA`, `BCFIPS`. |
 
-#### Secret and ConfigMap references
+#### Extra env vars, Secret and ConfigMap references
 
 | Field | Description |
 |---|---|
 | `adminSecretRef` | Name of a Secret injected via `envFrom.secretRef`. Should contain `PING_IDENTITY_DEVOPS_USER`, `PING_IDENTITY_DEVOPS_KEY`, `PING_IDENTITY_PASSWORD`, and optionally `PF_LDAP_PASSWORD`. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
 | `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
 
 ---
 
-## spec.pingDirectory
+## PingDirectory
 
-PingDirectory is **optional**. Omit this section entirely to skip PingDirectory deployment. When present it is deployed as a **StatefulSet** workload.
+Deployed by creating a `PingDirectory` CR. It renders as a **StatefulSet** workload.
+
+```yaml
+apiVersion: pingone.io/v1alpha1
+kind: PingDirectory
+metadata:
+  name: dev-pd
+spec:
+  environmentRef: env-dev
+  replicas: 1
+  storageSize: 8Gi
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      path: pingdirectory
+    userBaseDN: "dc=myorg,dc=com"
+```
 
 ### Basic fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
 | `image` | string | — | Image repository override. |
 | `version` | string | — | Image tag or full reference. |
 | `replicas` | int | `1` | Number of StatefulSet pods. |
 | `storageClass` | string | — | StorageClass for the `/opt/out` PersistentVolumeClaim. |
 | `storageSize` | string | `8Gi` | PVC size for `/opt/out`. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
 | `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
 
-### spec.pingDirectory.ingress
+### Ingress
 
 PingDirectory speaks LDAP/LDAPS, not HTTP. Ingress is always disabled — if external LDAP access is required, use a `LoadBalancer` service or TCP passthrough via `valuesOverride`.
 
-### spec.pingDirectory.container
-
-| Field | Type | Description |
-|---|---|---|
-| `waitFor` | list | Startup dependency probes. See [Container wait-for](#container-wait-for). |
-
-### spec.pingDirectory.config
+### spec.config
 
 #### Server profile
 
@@ -353,29 +412,64 @@ PingDirectory speaks LDAP/LDAPS, not HTTP. Ingress is always disabled — if ext
 | `parallelPodManagement` | `PARALLEL_POD_MANAGEMENT_POLICY` | `false` | Use `Parallel` StatefulSet podManagementPolicy. |
 | `failOnDisabledBaseDN` | `FAIL_ON_DISABLED_BASE_DN` | `false` | Fail if `USER_BASE_DN` replication is not enabled. |
 
-#### Secret and ConfigMap references
+#### Extra env vars, Secret and ConfigMap references
 
 | Field | Description |
 |---|---|
 | `adminSecretRef` | Name of a Secret injected via `envFrom.secretRef`. Should contain `root-user-password`, `admin-user-password`, and `encryption-password`. |
 | `keystoreSecretRef` | Name of a Secret containing the keystore (`keystore` key) and its pin (`keystore.pin` key) for TLS. Leave unset to auto-generate a self-signed cert. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
 | `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
 
 ---
 
-## spec.pingDataConsole
+## PingDataConsole
 
-PingDataConsole is **optional**. It is only deployed when this section is explicitly present in the spec. Omit it entirely to skip PingDataConsole.
+Deployed by creating a `PingDataConsole` CR. It renders as a Deployment workload.
+
+```yaml
+apiVersion: pingone.io/v1alpha1
+kind: PingDataConsole
+metadata:
+  name: dev-pd-console
+spec:
+  environmentRef: env-dev
+  ingress:
+    enabled: true
+  config:
+    brandingAppName: "Example Directory Console"
+```
+
+> **Deprecated:** the inline `spec.pingDataConsole` section on PingEnvironment still works
+> (it deploys the console alongside a PingDirectory CR in the same environment), but new
+> deployments should use the PingDataConsole CR. When both are present, the CR wins.
 
 ### Basic fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | bool | `true` (when section is present) | Set to `false` to include the section but still skip deployment. |
-| `image` | string | — | Image repository override. Falls back to `spec.pingDirectory.image`. |
-| `version` | string | — | Image tag or full reference. Falls back to `spec.pingDirectory.version`. |
+| `environmentRef` | string | — | Name of the PingEnvironment this console belongs to. |
+| `image` | string | — | Image repository override. |
+| `version` | string | — | Image tag or full reference. |
+| `replicas` | int | `1` | Number of console pods. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
+| `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
 
-### spec.pingDataConsole.ingress
+### spec.config
+
+| Field | Env var | Default | Description |
+|---|---|---|---|
+| `httpPort` | `HTTP_PORT` | `8080` | HTTP listen port. |
+| `httpsPort` | `HTTPS_PORT` | `8443` | HTTPS listen port. |
+| `brandingAppName` | `BRANDING_APP_NAME` | `PingDirectory Admin Console` | Application name shown on the sign-on page and banner. |
+| `systemReadOnly` | `SYSTEM_READ_ONLY` | `false` | Put the console in read-only mode. |
+| `serverHost` | — | `<tenantId>-ping-pingdirectory-cluster` | PingData server hostname pre-filled on the sign-on page (`defaultLogin.server.host`). |
+| `serverPort` | — | PingDirectory LDAPS port (`1636`) | LDAPS port pre-filled on the sign-on page (`defaultLogin.server.port`). |
+| `envs` | — | — | Map of additional env vars, passed through verbatim. |
+| `envConfigMapRef` | — | — | Name of a ConfigMap injected via `envFrom.configMapRef`. |
+
+### spec.ingress
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -387,20 +481,23 @@ PingDataConsole is **optional**. It is only deployed when this section is explic
 
 ---
 
-## spec.pingAccess
+## PingAccess
 
-PingAccess is **optional**. Omit this section to skip PingAccess deployment. When present it is deployed as two Deployment workloads: an admin console (`pingaccess-admin`) and one or more engines (`pingaccess-engine`).
+Deployed by creating a `PingAccess` CR. It renders as two Deployment workloads: an admin console (`pingaccess-admin`) and one or more engines (`pingaccess-engine`).
 
 ### Basic fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
 | `image` | string | — | Image repository override. |
 | `version` | string | — | Image tag or full reference. |
 | `replicas` | int | `1` | Number of engine pods. The admin always runs as a single pod. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
 | `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
 
-### spec.pingAccess.adminIngress / engineIngress
+### spec.adminIngress / engineIngress
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -410,13 +507,7 @@ PingAccess is **optional**. Omit this section to skip PingAccess deployment. Whe
 | `tlsSecretRef` | string | `<tenantId>-pa-admin-tls` / `<tenantId>-pa-tls` | TLS Secret name. Auto-generated when not set. |
 | `annotations` | map | merged from global | Additional Ingress annotations. |
 
-### spec.pingAccess.container
-
-| Field | Type | Description |
-|---|---|---|
-| `waitFor` | list | Startup dependency probes. See [Container wait-for](#container-wait-for). |
-
-### spec.pingAccess.config
+### spec.config
 
 #### Server profile
 
@@ -447,31 +538,35 @@ PingAccess is **optional**. Omit this section to skip PingAccess deployment. Whe
 | `fipsModeOn` | `FIPS_MODE_ON` | `false` | Enable Bouncy Castle FIPS mode. |
 | `javaRamPercentage` | `JAVA_RAM_PERCENTAGE` | `60.0` | Percentage of container memory allocated to the JVM. |
 
-#### Secret and ConfigMap references
+#### Extra env vars, Secret and ConfigMap references
 
 | Field | Description |
 |---|---|
 | `adminSecretRef` | Name of a Secret injected via `envFrom.secretRef`. Should contain `PA_ADMIN_PASSWORD`. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
 | `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
 
 ---
 
-## spec.pingAuthorize
+## PingAuthorize
 
-PingAuthorize is **optional**. Omit this section to skip PingAuthorize deployment. When present it is deployed as a **StatefulSet** workload.
+Deployed by creating a `PingAuthorize` CR. It renders as a **StatefulSet** workload.
 
 ### Basic fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
 | `image` | string | — | Image repository override. |
 | `version` | string | — | Image tag or full reference. |
 | `replicas` | int | `1` | Number of StatefulSet pods. |
 | `storageClass` | string | — | StorageClass for the `/opt/out` PersistentVolumeClaim. |
 | `storageSize` | string | `8Gi` | PVC size for `/opt/out`. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
 | `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
 
-### spec.pingAuthorize.ingress
+### spec.ingress
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -481,13 +576,7 @@ PingAuthorize is **optional**. Omit this section to skip PingAuthorize deploymen
 | `tlsSecretRef` | string | `<tenantId>-paz-tls` | TLS Secret name. Auto-generated when not set. |
 | `annotations` | map | merged from global | Additional Ingress annotations. |
 
-### spec.pingAuthorize.container
-
-| Field | Type | Description |
-|---|---|---|
-| `waitFor` | list | Startup dependency probes. See [Container wait-for](#container-wait-for). |
-
-### spec.pingAuthorize.config
+### spec.config
 
 #### Server profile
 
@@ -518,29 +607,33 @@ PingAuthorize is **optional**. Omit this section to skip PingAuthorize deploymen
 |---|---|---|---|
 | `maxHeapSize` | `MAX_HEAP_SIZE` | `1g` | JVM max heap size. |
 
-#### Secret and ConfigMap references
+#### Extra env vars, Secret and ConfigMap references
 
 | Field | Description |
 |---|---|
 | `adminSecretRef` | Name of a Secret injected via `envFrom.secretRef`. Should contain `root-user-password` and `admin-user-password`. |
 | `encryptionSecretRef` | Name of a Secret containing the encryption password for the policy database. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
 | `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
 
 ---
 
-## spec.pingAuthorizePAP
+## PingAuthorizePAP
 
-PingAuthorizePAP is **optional**. Omit this section to skip PingAuthorizePAP deployment. When present it is deployed as a single-replica Deployment workload. No tier-based resource sizing is applied.
+Deployed by creating a `PingAuthorizePAP` CR. It renders as a single-replica Deployment workload. No tier-based resource sizing is applied.
 
 ### Basic fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
 | `image` | string | — | Image repository override. |
 | `version` | string | — | Image tag or full reference. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
 | `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
 
-### spec.pingAuthorizePAP.ingress
+### spec.ingress
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -550,13 +643,7 @@ PingAuthorizePAP is **optional**. Omit this section to skip PingAuthorizePAP dep
 | `tlsSecretRef` | string | `<tenantId>-paz-pap-tls` | TLS Secret name. Auto-generated when not set. |
 | `annotations` | map | merged from global | Additional Ingress annotations. |
 
-### spec.pingAuthorizePAP.container
-
-| Field | Type | Description |
-|---|---|---|
-| `waitFor` | list | Startup dependency probes. See [Container wait-for](#container-wait-for). |
-
-### spec.pingAuthorizePAP.config
+### spec.config
 
 #### Server profile
 
@@ -576,21 +663,183 @@ PingAuthorizePAP is **optional**. Omit this section to skip PingAuthorizePAP dep
 | `enableAPIHTTPCache` | `PING_ENABLE_API_HTTP_CACHE` | `true` | Enable the PAP API HTTP cache. |
 | `policyDBSync` | `PING_POLICY_DB_SYNC` | `false` | Enable policy database synchronization. |
 
-#### Secret and ConfigMap references
+#### Extra env vars, Secret and ConfigMap references
 
 | Field | Description |
 |---|---|
 | `sharedSecretRef` | Name of a Secret injected via `envFrom.secretRef`. Should contain `PING_SHARED_SECRET`. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
+| `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
+
+---
+
+## PingDataSync
+
+Deployed by creating a `PingDataSync` CR. It renders as a **StatefulSet** workload.
+
+```yaml
+apiVersion: pingone.io/v1alpha1
+kind: PingDataSync
+metadata:
+  name: dev-pds
+spec:
+  environmentRef: env-dev
+  replicas: 1
+  config:
+    serverProfile:
+      url: https://github.com/pingidentity/pingidentity-server-profiles.git
+      path: simple-sync/pingdatasync
+```
+
+### Basic fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
+| `image` | string | — | Image repository override. |
+| `version` | string | — | Image tag or full reference. |
+| `replicas` | int | `1` | Number of StatefulSet pods. |
+| `storageClass` | string | — | StorageClass for the `/opt/out` PersistentVolumeClaim. |
+| `storageSize` | string | `8Gi` | PVC size for `/opt/out`. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
+| `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
+
+### spec.ingress
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | inherited | Whether to create an Ingress resource. |
+| `className` | string | inherited | `ingressClassName`. |
+| `hostname` | string | `pds.<domain>` | FQDN for PingDataSync. |
+| `tlsSecretRef` | string | `<tenantId>-pds-tls` | TLS Secret name. Auto-generated when not set. |
+| `annotations` | map | merged from global | Additional Ingress annotations. |
+
+### spec.config
+
+#### Server profile
+
+| Field | Env var | Description |
+|---|---|---|
+| `serverProfile` | `SERVER_PROFILE_*` | Base server profile. See [Server profiles](#server-profiles). |
+| `serverProfileLayers` | `SERVER_PROFILE_<NAME>_*` | Layered profiles. See [Server profiles](#server-profiles). |
+
+#### Sync configuration
+
+| Field | Env var | Default | Description |
+|---|---|---|---|
+| `adminUserName` | `ADMIN_USER_NAME` | `admin` | Failover administrative user. |
+| `retryTimeoutSeconds` | `RETRY_TIMEOUT_SECONDS` | `180` | Timeout for manage-topology operations. |
+| `rebuildOnRestart` | `PD_REBUILD_ON_RESTART` | `false` | Force replace-profile on every restart. |
+| `parallelPodManagement` | `PARALLEL_POD_MANAGEMENT_POLICY` | `false` | Use `Parallel` StatefulSet podManagementPolicy. |
+| `skipWaitForDNS` | `SKIP_WAIT_FOR_DNS` | `false` | Skip the DNS readiness check on startup. |
+
+#### TLS
+
+| Field | Env var | Description |
+|---|---|---|
+| `certificateNickname` | `CERTIFICATE_NICKNAME` | Alias of the certificate to use within the keystore. |
+| `keystoreFile` | `KEYSTORE_FILE` | Path to the keystore file. |
+| `keystorePinFile` | `KEYSTORE_PIN_FILE` | Path to the keystore PIN file. |
+| `keystoreType` | `KEYSTORE_TYPE` | Keystore format: `jks`, `pkcs12`, `pem`, or `bcfks`. |
+| `truststoreFile` | `TRUSTSTORE_FILE` | Path to the truststore file. |
+| `truststorePinFile` | `TRUSTSTORE_PIN_FILE` | Path to the truststore PIN file. |
+| `truststoreType` | `TRUSTSTORE_TYPE` | Truststore format: `jks`, `pkcs12`, `pem`, or `bcfks`. |
+
+#### Extra env vars, Secret and ConfigMap references
+
+| Field | Description |
+|---|---|
+| `adminSecretRef` | Name of a Secret injected via `envFrom.secretRef` containing admin credentials (`ROOT_USER_PASSWORD_FILE` / `ADMIN_USER_PASSWORD_FILE`). |
+| `keystoreSecretRef` | Name of a Secret containing the keystore file and PIN. |
+| `truststoreSecretRef` | Name of a Secret containing the truststore file and PIN. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
+| `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
+
+---
+
+## PingDirectoryProxy
+
+Deployed by creating a `PingDirectoryProxy` CR. It renders as a **StatefulSet** workload.
+
+### Basic fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `environmentRef` | string | — | Name of the PingEnvironment this product belongs to. |
+| `image` | string | — | Image repository override. |
+| `version` | string | — | Image tag or full reference. |
+| `replicas` | int | `1` | Number of StatefulSet pods. |
+| `storageClass` | string | — | StorageClass for the `/opt/out` PersistentVolumeClaim. |
+| `storageSize` | string | `8Gi` | PVC size for `/opt/out`. |
+| `service` | object | — | Kubernetes Service customisation (`annotations`). |
+| `container` | object | — | See [Container settings](#container-settings). |
+| `valuesOverride` | object | — | Raw JSON deep-merged on top of all computed Helm values. |
+
+### spec.ingress
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | inherited | Whether to create an Ingress resource. |
+| `className` | string | inherited | `ingressClassName`. |
+| `hostname` | string | `pdp.<domain>` | FQDN for PingDirectoryProxy. |
+| `tlsSecretRef` | string | `<tenantId>-pdp-tls` | TLS Secret name. Auto-generated when not set. |
+| `annotations` | map | merged from global | Additional Ingress annotations. |
+
+### spec.config
+
+#### Server profile
+
+| Field | Env var | Description |
+|---|---|---|
+| `serverProfile` | `SERVER_PROFILE_*` | Base server profile. See [Server profiles](#server-profiles). |
+| `serverProfileLayers` | `SERVER_PROFILE_<NAME>_*` | Layered profiles. See [Server profiles](#server-profiles). |
+
+#### Proxy configuration
+
+| Field | Env var | Default | Description |
+|---|---|---|---|
+| `adminUserName` | `ADMIN_USER_NAME` | `admin` | Replication administrative user. |
+| `retryTimeoutSeconds` | `RETRY_TIMEOUT_SECONDS` | `180` | Timeout for manage-topology operations. |
+| `pingDirectoryHostname` | `PINGDIRECTORY_HOSTNAME` | — | PingDirectory hostname used for automatic server discovery. |
+| `pingDirectoryLDAPSPort` | `PINGDIRECTORY_LDAPS_PORT` | — | PingDirectory LDAPS port for automatic server discovery. |
+| `joinPDTopology` | `JOIN_PD_TOPOLOGY` | `false` | Join the topology of PingDirectory. |
+
+#### TLS
+
+| Field | Env var | Description |
+|---|---|---|
+| `certificateNickname` | `CERTIFICATE_NICKNAME` | Alias of the certificate to use within the keystore. |
+| `keystoreFile` | `KEYSTORE_FILE` | Path to the keystore file. |
+| `keystorePinFile` | `KEYSTORE_PIN_FILE` | Path to the keystore PIN file. |
+| `keystoreType` | `KEYSTORE_TYPE` | Keystore format: `jks`, `pkcs12`, `pem`, or `bcfks`. |
+| `truststoreFile` | `TRUSTSTORE_FILE` | Path to the truststore file. |
+| `truststorePinFile` | `TRUSTSTORE_PIN_FILE` | Path to the truststore PIN file. |
+| `truststoreType` | `TRUSTSTORE_TYPE` | Truststore format: `jks`, `pkcs12`, `pem`, or `bcfks`. |
+
+#### Extra env vars, Secret and ConfigMap references
+
+| Field | Description |
+|---|---|
+| `adminSecretRef` | Name of a Secret injected via `envFrom.secretRef` containing admin credentials (`ROOT_USER_PASSWORD_FILE`). |
+| `keystoreSecretRef` | Name of a Secret containing the keystore file and PIN. |
+| `truststoreSecretRef` | Name of a Secret containing the truststore file and PIN. |
+| `envs` | Map of additional env vars, passed through verbatim. Keys override built-in env vars. |
 | `envConfigMapRef` | Name of a ConfigMap injected via `envFrom.configMapRef` for additional env vars. |
 
 ---
 
 ## valuesOverride
 
-Each product spec accepts a `valuesOverride` field containing raw JSON that is deep-merged on top of all operator-computed Helm values. Override values always win. The values are scoped to the full `ping-devops` chart root — you can override any sub-chart key.
+Each product CR accepts a `spec.valuesOverride` field containing raw JSON that is deep-merged on top of all operator-computed Helm values. Override values always win. The values are scoped to the full `ping-devops` chart root — you can override any sub-chart key.
 
 ```yaml
-pingFederate:
+apiVersion: pingone.io/v1alpha1
+kind: PingFederate
+metadata:
+  name: dev-pf
+spec:
+  environmentRef: env-dev
   valuesOverride:
     pingfederate-engine:
       container:
@@ -602,22 +851,28 @@ pingFederate:
         SOME_CUSTOM_VAR: "value"
 ```
 
+When several product CRs define overrides, they are merged in a fixed order (PingFederate, PingDirectory, PingAccess, PingAuthorize, PingAuthorizePAP, PingDataSync, PingDirectoryProxy, PingDataConsole), so later products win on conflicting keys.
+
 ---
 
 ## Status fields
 
-After reconciliation the CR's status reflects the outcome:
+After reconciliation the PingEnvironment status reflects the outcome:
 
 | Field | Description |
 |---|---|
 | `status.phase` | One of: `Pending`, `Deploying`, `Ready`, `Failed`. |
-| `status.pingFederateRelease` | Helm release name (`<tenantId>-ping`). |
-| `status.pingDirectoryRelease` | Helm release name if PingDirectory is enabled, otherwise empty. |
-| `status.pingAccessRelease` | Helm release name if PingAccess is enabled, otherwise empty. |
-| `status.pingAuthorizeRelease` | Helm release name if PingAuthorize is enabled, otherwise empty. |
-| `status.pingAuthorizePAPRelease` | Helm release name if PingAuthorizePAP is enabled, otherwise empty. |
+| `status.release` | Helm release name (`<tenantId>-ping`). |
 | `status.conditions` | Standard Kubernetes conditions. `Ready=True` when deployment succeeded. |
 | `status.observedGeneration` | Last spec generation processed by the reconciler. |
+
+Each product CR mirrors the environment's outcome in its own status:
+
+| Field | Description |
+|---|---|
+| `status.phase` | `Pending` while the referenced PingEnvironment does not exist, then `Ready` or `Failed` following the environment. |
+| `status.release` | Helm release name that manages this product. |
+| `status.conditions` / `status.observedGeneration` | As above. |
 
 On failure the operator sets `phase=Failed` and requeues after 30 seconds. Fix the spec and re-apply to retry.
 
@@ -651,7 +906,6 @@ spec:
   tenantId: myorg-dev
   tier: development
   domain: dev.myorg.example.com
-
   ingress:
     enabled: true
     className: nginx
@@ -659,81 +913,117 @@ spec:
       nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       cert-manager.io/cluster-issuer: "letsencrypt-prod"
-
-  pingFederate:
-    version: "13.0.2-edge"
-    engineIngress:
-      enabled: true
-    adminIngress:
-      enabled: true
-    config:
-      serverProfile:
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingFederate
+metadata:
+  name: myorg-dev-pf
+  namespace: ping-dev
+spec:
+  environmentRef: myorg-dev
+  version: "13.0.2-edge"
+  engineIngress:
+    enabled: true
+  adminIngress:
+    enabled: true
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      branch: main
+      path: pingfederate
+    enginePublicHostname: pf.dev.myorg.example.com
+    adminPublicHostname: pf-admin.dev.myorg.example.com
+    adminPublicBaseURL: https://pf-admin.dev.myorg.example.com:9999
+    consoleEnvironment: myorg-dev
+    pingOneRegion: com
+    pingOneEnvID: "abc123-def456"
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingDirectory
+metadata:
+  name: myorg-dev-pd
+  namespace: ping-dev
+spec:
+  environmentRef: myorg-dev
+  replicas: 1
+  storageClass: standard
+  storageSize: 10Gi
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      branch: main
+      path: pingdirectory
+    userBaseDN: "dc=myorg,dc=com"
+    adminSecretRef: pd-admin-secret
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingDataConsole
+metadata:
+  name: myorg-dev-pd-console
+  namespace: ping-dev
+spec:
+  environmentRef: myorg-dev
+  ingress:
+    enabled: true
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingAccess
+metadata:
+  name: myorg-dev-pa
+  namespace: ping-dev
+spec:
+  environmentRef: myorg-dev
+  engineIngress:
+    enabled: true
+  adminIngress:
+    enabled: true
+  container:
+    waitFor:
+      - application: pingFederate
+        service: https
+        timeoutSeconds: 300
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      path: getting-started/pingaccess
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingAuthorize
+metadata:
+  name: myorg-dev-paz
+  namespace: ping-dev
+spec:
+  environmentRef: myorg-dev
+  ingress:
+    enabled: true
+  container:
+    waitFor:
+      - application: pingDirectory
+        service: ldaps
+        timeoutSeconds: 300
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      path: paz-pap-integration/pingauthorize
+      parent: baseline
+    serverProfileLayers:
+      - name: baseline
         url: https://github.com/myorg/ping-profiles.git
-        branch: main
-        path: pingfederate
-      enginePublicHostname: pf.dev.myorg.example.com
-      adminPublicHostname: pf-admin.dev.myorg.example.com
-      adminPublicBaseURL: https://pf-admin.dev.myorg.example.com:9999
-      consoleEnvironment: myorg-dev
-      pingOneRegion: com
-      pingOneEnvID: "abc123-def456"
-
-  pingDirectory:
-    replicas: 1
-    storageClass: standard
-    storageSize: 10Gi
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        branch: main
-        path: pingdirectory
-      userBaseDN: "dc=myorg,dc=com"
-      adminSecretRef: pd-admin-secret
-
-  pingDataConsole:
-    ingress:
-      enabled: true
-
-  pingAccess:
-    engineIngress:
-      enabled: true
-    adminIngress:
-      enabled: true
-    container:
-      waitFor:
-        - application: pingFederate
-          service: https
-          timeoutSeconds: 300
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        path: getting-started/pingaccess
-
-  pingAuthorize:
-    ingress:
-      enabled: true
-    container:
-      waitFor:
-        - application: pingDirectory
-          service: ldaps
-          timeoutSeconds: 300
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        path: paz-pap-integration/pingauthorize
-        parent: baseline
-      serverProfileLayers:
-        - name: baseline
-          url: https://github.com/myorg/ping-profiles.git
-          path: baseline/pingauthorize
-
-  pingAuthorizePAP:
-    ingress:
-      enabled: true
-    config:
-      serverProfile:
-        url: https://github.com/myorg/ping-profiles.git
-        path: paz-pap-integration/pingauthorizepap
-      oidcConfigEndpoint: https://auth.myorg.example.com/.well-known/openid-configuration
-      clientId: pingauthorize-pap
+        path: baseline/pingauthorize
+---
+apiVersion: pingone.io/v1alpha1
+kind: PingAuthorizePAP
+metadata:
+  name: myorg-dev-paz-pap
+  namespace: ping-dev
+spec:
+  environmentRef: myorg-dev
+  ingress:
+    enabled: true
+  config:
+    serverProfile:
+      url: https://github.com/myorg/ping-profiles.git
+      path: paz-pap-integration/pingauthorizepap
+    oidcConfigEndpoint: https://auth.myorg.example.com/.well-known/openid-configuration
+    clientId: pingauthorize-pap
 ```

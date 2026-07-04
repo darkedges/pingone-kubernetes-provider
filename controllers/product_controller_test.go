@@ -149,6 +149,42 @@ func TestListProducts_DeterministicWinner(t *testing.T) {
 	})
 }
 
+func TestListProducts_PingDataConsole(t *testing.T) {
+	requireEnv(t)
+	ctx := context.Background()
+
+	env := &pingonev1alpha1.PingEnvironment{
+		ObjectMeta: metav1.ObjectMeta{Name: "env-pdc", Namespace: "default"},
+		Spec:       pingonev1alpha1.PingEnvironmentSpec{TenantID: "pdc", Tier: "development"},
+	}
+	if err := k8sClient.Create(ctx, env); err != nil {
+		t.Fatalf("create PingEnvironment: %v", err)
+	}
+	t.Cleanup(func() { _ = k8sClient.Delete(ctx, env) })
+
+	pdc := &pingonev1alpha1.PingDataConsole{
+		ObjectMeta: metav1.ObjectMeta{Name: "pdc-console", Namespace: "default"},
+		Spec: pingonev1alpha1.PingDataConsoleSpec{
+			EnvironmentRef: "env-pdc",
+			Config:         pingonev1alpha1.PingDataConsoleConfig{BrandingAppName: "Console"},
+		},
+	}
+	if err := k8sClient.Create(ctx, pdc); err != nil {
+		t.Fatalf("create PingDataConsole: %v", err)
+	}
+	t.Cleanup(func() { _ = k8sClient.Delete(ctx, pdc) })
+
+	waitFor(t, 10*time.Second, "listProducts to return the PingDataConsole spec", func() bool {
+		specs, lists, err := envReconciler.listProducts(ctx, env)
+		if err != nil {
+			return false
+		}
+		return len(lists.PingDataConsole) == 1 &&
+			specs.PingDataConsole != nil &&
+			specs.PingDataConsole.Config.BrandingAppName == "Console"
+	})
+}
+
 func TestCRDValidation_RejectsInvalidSpec(t *testing.T) {
 	requireEnv(t)
 	ctx := context.Background()

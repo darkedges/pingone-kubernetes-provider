@@ -1,0 +1,331 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.4
+  name: pingdataconsoles.pingone.io
+spec:
+  group: pingone.io
+  names:
+    kind: PingDataConsole
+    listKind: PingDataConsoleList
+    plural: pingdataconsoles
+    singular: pingdataconsole
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.environmentRef
+      name: Environment
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PingDataConsole is the Schema for the pingdataconsoles API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PingDataConsoleSpec defines the desired state of a PingDataConsole
+              deployment.
+            properties:
+              config:
+                description: Config holds PingDataConsole-specific environment variable
+                  configuration.
+                properties:
+                  brandingAppName:
+                    description: |-
+                      BrandingAppName sets the application name shown on the sign-on page and banner (BRANDING_APP_NAME).
+                      Default: "PingDirectory Admin Console".
+                    type: string
+                  envConfigMapRef:
+                    description: EnvConfigMapRef is the name of a ConfigMap with additional
+                      env vars to inject.
+                    type: string
+                  envs:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Envs is a map of additional environment variables to inject into this product's container.
+                      Keys override any built-in env vars with the same name.
+                    type: object
+                  httpPort:
+                    description: 'HTTPPort is the HTTP listen port (HTTP_PORT). Default:
+                      8080.'
+                    format: int32
+                    type: integer
+                  httpsPort:
+                    description: 'HTTPSPort is the HTTPS listen port (HTTPS_PORT).
+                      Default: 8443.'
+                    format: int32
+                    type: integer
+                  serverHost:
+                    description: |-
+                      ServerHost is the PingData server hostname pre-filled on the sign-on page
+                      (defaultLogin.server.host). Defaults to the PingDirectory cluster service of
+                      the environment (<tenantId>-ping-pingdirectory-cluster).
+                    type: string
+                  serverPort:
+                    description: |-
+                      ServerPort is the LDAPS port pre-filled on the sign-on page
+                      (defaultLogin.server.port). Defaults to the PingDirectory LDAPS port (1636).
+                    format: int32
+                    type: integer
+                  systemReadOnly:
+                    description: 'SystemReadOnly puts the console in read-only mode
+                      when true (SYSTEM_READ_ONLY). Default: false.'
+                    type: boolean
+                type: object
+              container:
+                description: Container holds container-level settings such as service
+                  wait conditions.
+                properties:
+                  containerSecurityContext:
+                    description: ContainerSecurityContext overrides the container-level
+                      securityContext for this product.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  includeVolumes:
+                    description: |-
+                      IncludeVolumes is a list of volume names defined in PingEnvironment.spec.volumes
+                      to mount into this product's pod.
+                    items:
+                      type: string
+                    type: array
+                  resources:
+                    description: |-
+                      Resources overrides the CPU/memory requests and limits for this product's containers.
+                      Takes precedence over the tier-based defaults and PingEnvironment.spec.resources.
+                    properties:
+                      limits:
+                        additionalProperties:
+                          type: string
+                        description: Limits are the maximum resources the container
+                          may use.
+                        type: object
+                      requests:
+                        additionalProperties:
+                          type: string
+                        description: Requests are the minimum resources the container
+                          requires.
+                        type: object
+                    type: object
+                  securityContext:
+                    description: SecurityContext overrides the pod-level securityContext
+                      for this product's workload.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  volumeMounts:
+                    description: |-
+                      VolumeMounts is a list of additional container volumeMounts for this product's workload.
+                      Each element is a standard Kubernetes volumeMount spec (name, mountPath, subPath, etc.).
+                      Maps directly to the ping-devops sub-chart volumeMounts array.
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
+                    x-kubernetes-preserve-unknown-fields: true
+                  volumes:
+                    description: |-
+                      Volumes is a list of additional pod-level volumes for this product's workload.
+                      Each element is a standard Kubernetes volume spec (name, configMap, secret, emptyDir, etc.).
+                      Maps directly to the ping-devops sub-chart volumes array.
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
+                    x-kubernetes-preserve-unknown-fields: true
+                  waitFor:
+                    description: WaitFor is a list of services this container waits
+                      for before starting.
+                    items:
+                      description: WaitForSpec defines a single service dependency
+                        that must be reachable before the container starts.
+                      properties:
+                        application:
+                          description: |-
+                            Application is the logical name of the Ping product to wait for.
+                            Supported values: pingDirectory, pingFederate, pingFederateAdmin, pingFederateEngine,
+                            pingAccess, pingAccessAdmin, pingAccessEngine, pingAuthorize, pingAuthorizePAP, pingDataConsole.
+                            The operator resolves this to the correct Helm sub-chart service name automatically.
+                          type: string
+                        service:
+                          description: Service is the port/service type to probe (e.g.
+                            ldaps, https, ldap).
+                          type: string
+                        timeoutSeconds:
+                          description: 'TimeoutSeconds is how long to wait before
+                            giving up. Default: 300.'
+                          format: int32
+                          type: integer
+                      required:
+                      - application
+                      - service
+                      type: object
+                    type: array
+                type: object
+              environmentRef:
+                description: EnvironmentRef is the name of the PingEnvironment CR
+                  this product belongs to.
+                type: string
+              image:
+                description: Image is the container image repository. Omit to use
+                  the chart's default.
+                type: string
+              ingress:
+                description: |-
+                  Ingress configures the Kubernetes Ingress for PingDataConsole.
+                  Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations are merged on top of the global annotations
+                      for this component.
+                    type: object
+                  className:
+                    description: ClassName overrides the global ingressClassName for
+                      this component.
+                    type: string
+                  enabled:
+                    description: |-
+                      Enabled controls whether an Ingress resource is created for this component.
+                      When nil the value is inherited from spec.ingress.enabled.
+                    type: boolean
+                  hostname:
+                    description: Hostname is the FQDN for this component. Defaults
+                      to <prefix>.<spec.domain> when spec.domain is set.
+                    type: string
+                  tlsSecretRef:
+                    description: TLSSecretRef overrides the global TLS secret name
+                      for this component.
+                    type: string
+                type: object
+              replicas:
+                description: 'Replicas is the desired number of PingDataConsole pods.
+                  Default: 1.'
+                format: int32
+                minimum: 0
+                type: integer
+              service:
+                description: Service holds Kubernetes Service customisation for this
+                  product.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations are merged on top of the global service
+                      annotations for this component.
+                    type: object
+                type: object
+              valuesOverride:
+                description: ValuesOverride is merged on top of the base Helm values
+                  as raw JSON.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              version:
+                description: Version is the container image tag. Omit to use the chart's
+                  default tag.
+                type: string
+            type: object
+          status:
+            description: PingDataConsoleStatus describes the observed state of a PingDataConsole
+              resource.
+            properties:
+              conditions:
+                description: Conditions holds the latest available observations of
+                  the resource's state.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration is the generation last processed by
+                  the reconciler.
+                format: int64
+                type: integer
+              phase:
+                description: 'Phase is the current lifecycle phase: Pending, Ready,
+                  or Failed.'
+                type: string
+              release:
+                description: Release is the Helm release name that manages this product.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

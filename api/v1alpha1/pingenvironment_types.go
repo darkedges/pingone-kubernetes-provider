@@ -515,9 +515,13 @@ type PingFederateSpec struct {
 	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
 }
 
-// PingDataConsoleSpec configures the PingDataConsole web UI deployment.
-// PingDataConsole is only deployed when this section is explicitly present in the spec.
-type PingDataConsoleSpec struct {
+// PingDataConsoleInlineSpec configures the PingDataConsole web UI inline on a
+// PingEnvironment. It is only deployed when this section is explicitly present
+// in the spec and a PingDirectory CR references the same environment.
+//
+// Deprecated: create a PingDataConsole product CR instead. When a PingDataConsole
+// CR references the environment it takes precedence over this section.
+type PingDataConsoleInlineSpec struct {
 	// Enabled controls whether PingDataConsole is deployed.
 	// Defaults to true when this section is present; set to false to disable.
 	Enabled *bool `json:"enabled,omitempty"`
@@ -537,6 +541,56 @@ type PingDataConsoleSpec struct {
 	// Ingress configures the Kubernetes Ingress for PingDataConsole.
 	// Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
 	Ingress IngressSpec `json:"ingress,omitempty"`
+}
+
+// PingDataConsoleConfig maps to the env vars consumed by the pingdataconsole container.
+// See: https://developer.pingidentity.com/devops/docker-images/pingdataconsole/README.html
+type PingDataConsoleConfig struct {
+	// HTTPPort is the HTTP listen port (HTTP_PORT). Default: 8080.
+	HTTPPort int32 `json:"httpPort,omitempty"`
+	// HTTPSPort is the HTTPS listen port (HTTPS_PORT). Default: 8443.
+	HTTPSPort int32 `json:"httpsPort,omitempty"`
+	// BrandingAppName sets the application name shown on the sign-on page and banner (BRANDING_APP_NAME).
+	// Default: "PingDirectory Admin Console".
+	BrandingAppName string `json:"brandingAppName,omitempty"`
+	// SystemReadOnly puts the console in read-only mode when true (SYSTEM_READ_ONLY). Default: false.
+	SystemReadOnly bool `json:"systemReadOnly,omitempty"`
+	// ServerHost is the PingData server hostname pre-filled on the sign-on page
+	// (defaultLogin.server.host). Defaults to the PingDirectory cluster service of
+	// the environment (<tenantId>-ping-pingdirectory-cluster).
+	ServerHost string `json:"serverHost,omitempty"`
+	// ServerPort is the LDAPS port pre-filled on the sign-on page
+	// (defaultLogin.server.port). Defaults to the PingDirectory LDAPS port (1636).
+	ServerPort int32 `json:"serverPort,omitempty"`
+	// Envs is a map of additional environment variables to inject into this product's container.
+	// Keys override any built-in env vars with the same name.
+	Envs map[string]string `json:"envs,omitempty"`
+	// EnvConfigMapRef is the name of a ConfigMap with additional env vars to inject.
+	EnvConfigMapRef string `json:"envConfigMapRef,omitempty"`
+}
+
+// PingDataConsoleSpec defines the desired state of a PingDataConsole deployment.
+type PingDataConsoleSpec struct {
+	// EnvironmentRef is the name of the PingEnvironment CR this product belongs to.
+	EnvironmentRef string `json:"environmentRef,omitempty"`
+	// Image is the container image repository. Omit to use the chart's default.
+	Image string `json:"image,omitempty"`
+	// Version is the container image tag. Omit to use the chart's default tag.
+	Version string `json:"version,omitempty"`
+	// Replicas is the desired number of PingDataConsole pods. Default: 1.
+	// +kubebuilder:validation:Minimum=0
+	Replicas int32 `json:"replicas,omitempty"`
+	// Ingress configures the Kubernetes Ingress for PingDataConsole.
+	// Hostname defaults to pd-console.<spec.domain> when spec.domain is set.
+	Ingress IngressSpec `json:"ingress,omitempty"`
+	// Service holds Kubernetes Service customisation for this product.
+	Service ServiceSpec `json:"service,omitempty"`
+	// Container holds container-level settings such as service wait conditions.
+	Container ContainerSpec `json:"container,omitempty"`
+	// Config holds PingDataConsole-specific environment variable configuration.
+	Config PingDataConsoleConfig `json:"config,omitempty"`
+	// ValuesOverride is merged on top of the base Helm values as raw JSON.
+	ValuesOverride runtime.RawExtension `json:"valuesOverride,omitempty"`
 }
 
 // PingDirectorySpec defines the desired state of a PingDirectory deployment.
@@ -732,9 +786,11 @@ type PingEnvironmentSpec struct {
 	// Services holds shared Kubernetes Service settings inherited by all components.
 	// Per-product service.annotations take precedence on conflict.
 	Services GlobalServicesSpec `json:"services,omitempty"`
-	// PingDataConsole configures the PingDataConsole web UI.
+	// PingDataConsole configures the PingDataConsole web UI inline.
+	// Deprecated: create a PingDataConsole product CR instead; a PingDataConsole
+	// CR referencing this environment takes precedence over this section.
 	// Only deployed when this section is explicitly present and a PingDirectory CR references this environment.
-	PingDataConsole *PingDataConsoleSpec `json:"pingDataConsole,omitempty"`
+	PingDataConsole *PingDataConsoleInlineSpec `json:"pingDataConsole,omitempty"`
 	// TargetNamespace is the namespace to deploy into; defaults to metadata.namespace.
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Vault configures HashiCorp Vault Agent injection for all products in this environment.

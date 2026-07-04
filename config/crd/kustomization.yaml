@@ -1,2 +1,10 @@
 resources:
 - bases/pingone.io_pingenvironments.yaml
+- bases/pingone.io_pingfederates.yaml
+- bases/pingone.io_pingdirectories.yaml
+- bases/pingone.io_pingaccesses.yaml
+- bases/pingone.io_pingauthorizes.yaml
+- bases/pingone.io_pingauthorizepaps.yaml
+- bases/pingone.io_pingdatasyncs.yaml
+- bases/pingone.io_pingdirectoryproxies.yaml
+- bases/pingone.io_pingdataconsoles.yaml

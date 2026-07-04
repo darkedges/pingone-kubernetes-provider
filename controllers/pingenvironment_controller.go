@@ -42,6 +42,7 @@ type productCRLists struct {
 	PingAuthorizePAP   []pingonev1alpha1.PingAuthorizePAP
 	PingDataSync       []pingonev1alpha1.PingDataSync
 	PingDirectoryProxy []pingonev1alpha1.PingDirectoryProxy
+	PingDataConsole    []pingonev1alpha1.PingDataConsole
 }
 
 // +kubebuilder:rbac:groups=pingone.io,resources=pingenvironments,verbs=get;list;watch;create;update;patch;delete
@@ -100,6 +101,7 @@ func (r *PingEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&pingonev1alpha1.PingAuthorizePAP{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
 		Watches(&pingonev1alpha1.PingDataSync{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
 		Watches(&pingonev1alpha1.PingDirectoryProxy{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
+		Watches(&pingonev1alpha1.PingDataConsole{}, handler.EnqueueRequestsFromMapFunc(enqueueFromEnvironmentRef)).
 		Complete(r)
 }
 
@@ -262,6 +264,17 @@ func (r *PingEnvironmentReconciler) listProducts(ctx context.Context, env *pingo
 		specs.PingDirectoryProxy = &pdpList.Items[0].Spec
 	}
 
+	pdcList := &pingonev1alpha1.PingDataConsoleList{}
+	if err := r.List(ctx, pdcList, ns, fieldSel); err != nil {
+		return specs, lists, fmt.Errorf("list PingDataConsoles: %w", err)
+	}
+	if len(pdcList.Items) > 0 {
+		sort.Slice(pdcList.Items, func(i, j int) bool { return pdcList.Items[i].Name < pdcList.Items[j].Name })
+		warnDuplicates("PingDataConsole", len(pdcList.Items), pdcList.Items[0].Name)
+		lists.PingDataConsole = pdcList.Items
+		specs.PingDataConsole = &pdcList.Items[0].Spec
+	}
+
 	return specs, lists, nil
 }
 
@@ -403,5 +416,9 @@ func (r *PingEnvironmentReconciler) updateProductStatuses(ctx context.Context, r
 	for i := range lists.PingDirectoryProxy {
 		pdp := &lists.PingDirectoryProxy[i]
 		patchStatus(pdp, "PingDirectoryProxy", func() { pdp.Status.Phase = phase; pdp.Status.Release = releaseName })
+	}
+	for i := range lists.PingDataConsole {
+		pdc := &lists.PingDataConsole[i]
+		patchStatus(pdc, "PingDataConsole", func() { pdc.Status.Phase = phase; pdc.Status.Release = releaseName })
 	}
 }

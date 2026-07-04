@@ -41,6 +41,7 @@ var testProducts = []struct {
 	{"PingAuthorizePAP", func() ProductObject { return &pingonev1alpha1.PingAuthorizePAP{} }},
 	{"PingDataSync", func() ProductObject { return &pingonev1alpha1.PingDataSync{} }},
 	{"PingDirectoryProxy", func() ProductObject { return &pingonev1alpha1.PingDirectoryProxy{} }},
+	{"PingDataConsole", func() ProductObject { return &pingonev1alpha1.PingDataConsole{} }},
 }
 
 func TestMain(m *testing.M) {

@@ -237,6 +237,7 @@ type ProductSpecs struct {
 	PingAuthorizePAP   *pingonev1alpha1.PingAuthorizePAPSpec
 	PingDataSync       *pingonev1alpha1.PingDataSyncSpec
 	PingDirectoryProxy *pingonev1alpha1.PingDirectoryProxySpec
+	PingDataConsole    *pingonev1alpha1.PingDataConsoleSpec
 }
 
 // BuildPingValues constructs the full Helm values map for a ping-devops release
@@ -292,13 +293,17 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 		pdValues = buildPingDirectoryValues(env, products.PingDirectory)
 	}
 
-	// Assemble pingdataconsole section.
-	// Only deployed when spec.pingDataConsole is explicitly set and not disabled.
+	// Assemble pingdataconsole section. A PingDataConsole product CR takes
+	// precedence; the deprecated inline spec.pingDataConsole section is used
+	// otherwise, and only when a PingDirectory is deployed alongside it.
 	pdcValues := disabledSection()
-	if products.PingDirectory != nil &&
+	switch {
+	case products.PingDataConsole != nil:
+		pdcValues = buildPingDataConsoleValues(env, products.PingDataConsole, products.PingDirectory)
+	case products.PingDirectory != nil &&
 		env.PingDataConsole != nil &&
-		(env.PingDataConsole.Enabled == nil || *env.PingDataConsole.Enabled) {
-		pdcValues = buildPingDataConsoleValues(env, products.PingDirectory)
+		(env.PingDataConsole.Enabled == nil || *env.PingDataConsole.Enabled):
+		pdcValues = buildInlinePingDataConsoleValues(env, products.PingDirectory)
 	}
 
 	// Assemble pingaccess-admin and pingaccess-engine sections
@@ -393,6 +398,9 @@ func BuildPingValues(env pingonev1alpha1.PingEnvironmentSpec, products ProductSp
 	}
 	if products.PingDirectoryProxy != nil {
 		overrides = append(overrides, productOverride{"PingDirectoryProxy", products.PingDirectoryProxy.ValuesOverride})
+	}
+	if products.PingDataConsole != nil {
+		overrides = append(overrides, productOverride{"PingDataConsole", products.PingDataConsole.ValuesOverride})
 	}
 	for _, o := range overrides {
 		var err error
@@ -747,10 +755,81 @@ func buildPingDirectoryValues(env pingonev1alpha1.PingEnvironmentSpec, spec *pin
 	return pdValues
 }
 
-// buildPingDataConsoleValues renders the pingdataconsole sub-chart section.
+// buildPingDataConsoleValues renders the pingdataconsole sub-chart section for
+// a PingDataConsole product CR. pd is the PingDirectory spec deployed in the
+// same environment, used to default the sign-on server host/port; it may be nil.
+func buildPingDataConsoleValues(env pingonev1alpha1.PingEnvironmentSpec, spec *pingonev1alpha1.PingDataConsoleSpec, pd *pingonev1alpha1.PingDirectorySpec) map[string]any {
+	pdcCfg := spec.Config
+
+	pdcEnvs := map[string]any{}
+	if pdcCfg.HTTPPort != 0 {
+		pdcEnvs["HTTP_PORT"] = fmt.Sprintf("%d", pdcCfg.HTTPPort)
+	}
+	if pdcCfg.HTTPSPort != 0 {
+		pdcEnvs["HTTPS_PORT"] = fmt.Sprintf("%d", pdcCfg.HTTPSPort)
+	}
+	if pdcCfg.BrandingAppName != "" {
+		pdcEnvs["BRANDING_APP_NAME"] = pdcCfg.BrandingAppName
+	}
+	if pdcCfg.SystemReadOnly {
+		pdcEnvs["SYSTEM_READ_ONLY"] = "true"
+	}
+	for k, v := range pdcCfg.Envs {
+		pdcEnvs[k] = v
+	}
+
+	var pdcEnvFrom []map[string]any
+	if pdcCfg.EnvConfigMapRef != "" {
+		pdcEnvFrom = append(pdcEnvFrom, configMapEnvFrom(pdcCfg.EnvConfigMapRef))
+	}
+
+	// Sign-on server defaults: explicit config wins, then the environment's
+	// PingDirectory cluster service and LDAPS port.
+	serverHost := pdcCfg.ServerHost
+	if serverHost == "" {
+		serverHost = fmt.Sprintf("%s-ping-pingdirectory-cluster", env.TenantID)
+	}
+	serverPort := pdcCfg.ServerPort
+	if serverPort == 0 {
+		serverPort = 1636
+		if pd != nil && pd.Config.LDAPSPort != 0 {
+			serverPort = pd.Config.LDAPSPort
+		}
+	}
+
+	pdcIng := resolveIngressSpec(env.Ingress, spec.Ingress)
+	pdcIng.TLSSecretRef = resolveTLSSecretRef(pdcIng.TLSSecretRef, env.TenantID, "pd-console")
+	pdcHostname := resolveHostname(pdcIng.Hostname, "pd-console", env.Domain)
+
+	pdcContainerVals := buildContainerValues("", "", spec.Container)
+	if len(pdcEnvFrom) > 0 {
+		pdcContainerVals["envFrom"] = pdcEnvFrom
+	}
+	pdcValues := map[string]any{
+		"enabled":   true,
+		"workload":  buildDeploymentWorkload(spec.Replicas),
+		"image":     buildImageValues(spec.Image, spec.Version),
+		"container": pdcContainerVals,
+		"envs":      pdcEnvs,
+		"defaultLogin": map[string]any{
+			"server": map[string]any{
+				"host": serverHost,
+				"port": serverPort,
+			},
+		},
+		"ingress": buildIngressSection(pdcIng, pdcHostname),
+	}
+	applyWorkloadSecurityContext(pdcValues, spec.Container.SecurityContext)
+	applyRawVolumes(pdcValues, spec.Container)
+	applyServiceAnnotations(pdcValues, resolveServiceAnnotations(env.Services, spec.Service))
+	return pdcValues
+}
+
+// buildInlinePingDataConsoleValues renders the pingdataconsole sub-chart section
+// from the deprecated inline spec.pingDataConsole section of a PingEnvironment.
 // Callers must ensure env.PingDataConsole and pd (the PingDirectory spec the
 // console connects to) are non-nil.
-func buildPingDataConsoleValues(env pingonev1alpha1.PingEnvironmentSpec, pd *pingonev1alpha1.PingDirectorySpec) map[string]any {
+func buildInlinePingDataConsoleValues(env pingonev1alpha1.PingEnvironmentSpec, pd *pingonev1alpha1.PingDirectorySpec) map[string]any {
 	pdc := *env.PingDataConsole
 	pdcIng := resolveIngressSpec(env.Ingress, pdc.Ingress)
 	pdcIng.TLSSecretRef = resolveTLSSecretRef(pdcIng.TLSSecretRef, env.TenantID, "pd-console")

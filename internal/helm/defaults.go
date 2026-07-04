@@ -113,6 +113,12 @@ func applyDefaults(env *pingonev1alpha1.PingEnvironmentSpec, products *ProductSp
 		}
 	}
 
+	if products.PingDataConsole != nil {
+		if products.PingDataConsole.Replicas == 0 {
+			products.PingDataConsole.Replicas = 1
+		}
+	}
+
 	if products.PingDirectory == nil {
 		return
 	}
